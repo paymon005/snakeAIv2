@@ -7,6 +7,7 @@ from collections import Counter
 from tqdm import tqdm
 from datetime import datetime
 from DeepNeuralNetworkDriver import DnnDriver
+start_time = time.time()
 random.seed(time.time())
 now = datetime.now()  # current date and time
 run_dir = now.strftime("%Y_%m_%d___%H_%M_%S")
@@ -15,7 +16,7 @@ run_dir = now.strftime("%Y_%m_%d___%H_%M_%S")
 # 1:  Train a new model
 # 2:  Load the last model
 # 3:  Load a specific model
-run_mode = 2
+run_mode = 1
 profile_run = False
 
 run_to_load = '2022_11_19___00_45_36'
@@ -42,7 +43,8 @@ def main():
         env.close()
     else:
         run_tflearn_trainer()
-
+    duration = time.time() - start_time
+    print('Total Elapsed Time: ' + str(int(duration/60)) + ' minutes')
 
 def run_tflearn_trainer():
     training_driver = DnnDriver(env.action_space_size, model_name, model_dir, run_dir, LR, epochs, keep_rate,
