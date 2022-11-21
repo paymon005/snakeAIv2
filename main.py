@@ -19,7 +19,10 @@ run_dir = now.strftime("%Y_%m_%d___%H_%M_%S")
 # 1:  Train a new model
 # 2:  Load the last model
 # 3:  Load a specific model
-run_mode = int(sys.argv[1])
+if len(sys.argv) > 1:
+    run_mode = int(sys.argv[1])
+else:
+    run_mode = 1  # hardcode default run value here
 profile_run = False
 
 run_to_load = '2022_11_19___00_45_36'
@@ -29,7 +32,7 @@ model_to_resume = 'Snake_Model-6'
 game_size = [40, 27]
 snake_speed = 45
 env = SnakeEnv(game_size)
-score_check_runs = 10000
+score_check_runs = 50000
 accepted_percentile = 5
 initial_games = 100000
 epochs = 1000
