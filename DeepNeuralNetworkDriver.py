@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 from tflearn.layers.core import input_data, dropout, fully_connected
 from tflearn.layers.estimator import regression
@@ -25,6 +27,7 @@ class DnnDriver:
         self._run_dir = run_dir
         self._run_id = run_dir  # 'Snake_Model'
         self._profile_run = profile_run
+        self._snapshot_frequency = 5
 
     def train_model(self, model=False):
         input_shape = self._training_data[0][0].shape
@@ -38,8 +41,12 @@ class DnnDriver:
                                                                python_tracer_level=1,
                                                                device_tracer_level=1)
             tf.profiler.experimental.start(self._log_dir, options=options)
-        model.fit({'input': X}, {'targets': y}, n_epoch=self._epochs, snapshot_epoch=True, show_metric=True,
-                  run_id=self._run_id)
+        step_snapshot_interval = self._snapshot_frequency * int(len(self._training_data)/64)
+        print('Fitting the model and snapshotting every ' + str(self._snapshot_frequency) + ' epcchs or every ' +
+              str(step_snapshot_interval) + ' steps.')
+        time.sleep(5)
+        model.fit({'input': X}, {'targets': y}, n_epoch=self._epochs, snapshot_epoch=False, show_metric=True,
+                  run_id=self._run_id, snapshot_step=step_snapshot_interval)
         if self._profile_run:
             tf.profiler.experimental.stop()
         return model
@@ -81,6 +88,7 @@ class DnnDriver:
             self.neural_network_model(self._observation_space_size[0] * self._observation_space_size[1])
             print('Loading: ' + final_directory)
             self._model.load(final_directory)
+        return self._model
 
     def plot_graphs(self):
         os.system("taskkill /IM ""tensorboard.exe"" /F")
@@ -102,6 +110,16 @@ class DnnDriver:
                 file_nums.append(int(tmp[1].split('.')[0]))
         last_run = self._model_name + '-' + str(max(file_nums))
         return last_run
+
+    def load_training_data(self, run_dir_to_load=None):
+        if run_dir_to_load is not None:
+            file_to_load = os.path.join(os.getcwd(), self._model_dir, run_dir_to_load, 'training_data.npy')
+        else:
+            file_to_load = os.path.join(os.getcwd(), self._model_dir, self._run_dir, 'training_data.npy')
+        np_load_old = np.load
+        np.load = lambda *a, **k: np_load_old(*a, allow_pickle=True, **k)
+        self._training_data = np.load(file_to_load)
+        np.load = np_load_old
 
     @property
     def learning_rate(self):
