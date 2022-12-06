@@ -17,9 +17,9 @@ run_dir = now.strftime("%Y_%m_%d___%H_%M_%S")
 
 # 0:  Run one random case
 # 1:  Train a new model then run it
-# 2:  Load the last model and run it
+# 2:  Load the last model then run it
 # 3:  Load a specific model and run it
-# 4:  Load the last model and continue training it
+# 4:  Load the last model and training data and continue training it
 # 5:  Just make training data
 if len(sys.argv) > 1:
     run_mode = int(sys.argv[1])
