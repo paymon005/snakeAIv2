@@ -42,7 +42,7 @@ class DnnDriver:
                                                                device_tracer_level=1)
             tf.profiler.experimental.start(self._log_dir, options=options)
         step_snapshot_interval = self._snapshot_frequency * int(len(self._training_data)/64)
-        print('Fitting the model and snapshotting every ' + str(self._snapshot_frequency) + ' epcchs or every ' +
+        print('Fitting the model and snapshotting every ' + str(self._snapshot_frequency) + ' epochs or every ' +
               str(step_snapshot_interval) + ' steps.')
         time.sleep(5)
         model.fit({'input': X}, {'targets': y}, n_epoch=self._epochs, snapshot_epoch=False, show_metric=True,
