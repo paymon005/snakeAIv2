@@ -16,15 +16,15 @@ now = datetime.now()  # current date and time
 run_dir = now.strftime("%Y_%m_%d___%H_%M_%S")
 
 # 0:  Run one random case
-# 1:  Train a new model
-# 2:  Load the last model
-# 3:  Load a specific model
+# 1:  Train a new model then run it
+# 2:  Load the last model and run it
+# 3:  Load a specific model and run it
 # 4:  Load the last model and continue training it
 # 5:  Just make training data
 if len(sys.argv) > 1:
     run_mode = int(sys.argv[1])
 else:
-    run_mode = 2  # hardcode default run value here
+    run_mode = 4  # hardcode default run value here
 profile_run = False
 
 run_to_load = '2022_11_19___00_45_36'
