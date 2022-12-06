@@ -24,22 +24,22 @@ run_dir = now.strftime("%Y_%m_%d___%H_%M_%S")
 if len(sys.argv) > 1:
     run_mode = int(sys.argv[1])
 else:
-    run_mode = 4  # hardcode default run value here
+    run_mode = 2  # hardcode default run value here
 profile_run = False
 
 run_to_load = '2022_11_19___00_45_36'
 model_to_resume = 'Snake_Model-6'
 
 # game_size = [72, 48]
-game_size = [40, 27]
+game_size = [36, 24]
 snake_speed = 45
 env = SnakeEnv(game_size)
 score_check_runs = 50000
-accepted_percentile = 5
-initial_games = 100000
+accepted_percentile = 1
+initial_games = 200000
 epochs = 500
 keep_rate = 0.8
-LR = 5e-5
+LR = 1e-3
 model_dir = 'Models'
 model_name = 'Snake_Model'
 kickout_sore = -500
@@ -71,11 +71,11 @@ def run_tflearn_trainer():
             test_run_scores, score_requirement = get_score_requirement(score_check_runs)
             print('Setting ' + str(score_requirement) + ' as the score requirement')
             time.sleep(5)
+            training_driver.create_save_dir(model_dir, run_dir)
             training_driver.training_data, accepted_scores = initial_population(initial_games, score_requirement)
             time.sleep(5)
             if len(training_driver.training_data) == 0:
                 return
-            training_driver.create_save_dir(model_dir, run_dir)
             save_inputs(accepted_scores, test_run_scores, score_requirement)
             training_driver.train_model()
         elif run_mode == 4:
@@ -130,7 +130,7 @@ def initial_population(num_of_runs=initial_games, score_requirement=-9e9):
                 game_memory.append([prev_observation, action])
             prev_observation = observation
             score += reward
-            if done:
+            if done or score < kickout_sore:
                 break
         if score >= score_requirement:
             accepted_scores.append(score)
@@ -232,7 +232,7 @@ def save_inputs(accepted_scores, test_run_scores, score_requirement):
 
 
 def save_outputs(final_scores):
-    filename = model_dir + '\\' + run_dir + '\\' + 'Summary' + '.txt'
+    filename = training_driver.model_dir + '\\' + training_driver.run_dir + '\\' + 'Summary' + '.txt'
     file = open(filename, "a")
     file.write('Number of final scores    : ' + str(len(final_scores)) + '\n')
     file.write('Max Score                 : ' + str(max(final_scores)) + '\n')

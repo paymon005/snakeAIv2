@@ -158,6 +158,18 @@ class DnnDriver:
         del self._run_dir
 
     @property
+    def model_dir(self):
+        return self._model_dir
+
+    @model_dir.setter
+    def model_dir(self, value):
+        self._model_dir = value
+
+    @model_dir.deleter
+    def model_dir(self):
+        del self._model_dir
+
+    @property
     def run_id(self):
         return self._run_id
 

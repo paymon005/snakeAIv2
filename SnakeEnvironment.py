@@ -17,7 +17,6 @@ class SnakeEnv(gym.Env):
         self._towards_weight = 0
         self._away_weight = 0
         self._last_score = 0
-        self._last_self_distance = 99
         self._last_obs = None
         self._window = None
         self._fps = None
