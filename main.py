@@ -24,7 +24,7 @@ run_dir = now.strftime("%Y_%m_%d___%H_%M_%S")
 if len(sys.argv) > 1:
     run_mode = int(sys.argv[1])
 else:
-    run_mode = 4  # hardcode default run value here
+    run_mode = 2  # hardcode default run value here
 profile_run = False
 
 run_to_load = '2022_11_19___00_45_36'
@@ -37,9 +37,9 @@ env = SnakeEnv(game_size)
 score_check_runs = 50000
 accepted_percentile = 1
 initial_games = 200000
-epochs = 500
+epochs = 50
 keep_rate = 0.8
-LR = 1e-3
+LR = 1e-2
 model_dir = 'Models'
 model_name = 'Snake_Model'
 kickout_sore = -500
