@@ -150,8 +150,6 @@ def initial_population(num_of_runs=initial_games, score_requirement=-9e9, model=
             [observation, reward, done, []] = env.step(action)
             game_memory.append([prev_observation, action])
             prev_observation = observation
-            if observation[0] != 0 or observation[1] != 0 or observation[2] != 0:
-                time.sleep(1)
             score += reward
             if done or score < kickout_sore:
                 break

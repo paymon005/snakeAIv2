@@ -42,7 +42,7 @@ class SnakeEnv(gym.Env):
         assert self._action_space.contains(action), "Invalid Action"
         self._controller.change_direction(self.get_action_meaning(action))
         self._controller.change_position()
-        self._controller.check_yumyum()  # check if we ate
+        self._controller.check_yumyum_and_move_body()  # check if we ate
         if self._controller.check_game_over():
             done = True
         else:

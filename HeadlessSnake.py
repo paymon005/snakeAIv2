@@ -35,7 +35,7 @@ class HeadlessSnake:
             self._fruit_position = [random.randrange(1, (self._game_size[0] // 10)) * 10 - 1,
                                     random.randrange(1, (self._game_size[1] // 10)) * 10 - 1]
 
-    def check_yumyum(self):
+    def check_yumyum_and_move_body(self):
         snake_body = self._snake.body
         snake_body.insert(0, list(self._snake.position))
         if self._snake.position[0] == self._fruit_position[0] and self._snake.position[1] == \
