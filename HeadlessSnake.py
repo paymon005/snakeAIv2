@@ -1,3 +1,4 @@
+import math
 import time
 import pygame
 import numpy as np
@@ -27,6 +28,7 @@ class HeadlessSnake:
         self._matrix[:, self._window_y - 1] = 1
         self._matrix[0, :] = 1
         self._matrix[self._window_x - 1, :] = 1
+        self._arr = np.array([0, 0, 0, 0])
 
     def spawn_fruit(self):
         while self._fruit_position in self._snake.body or self._fruit_position == self._snake.position:
@@ -100,6 +102,28 @@ class HeadlessSnake:
         self._matrix[self.fruit_position[1], self.fruit_position[0]] = 4
         self._matrix[self._snake.position[1], self._snake.position[0]] = 2
         return self._matrix
+
+    def get_array(self):
+        self._matrix = self.update_matrix()
+        self._arr = np.array([0, 0, 0, 0])
+        if self._snake.direction == 'UP':
+            self._arr[0] = self._matrix[self._snake.position[1], self._snake.position[0]-1]
+            self._arr[1] = self._matrix[self._snake.position[1]-1, self._snake.position[0]]
+            self._arr[2] = self._matrix[self._snake.position[1]+1, self._snake.position[0]]
+        elif self._snake.direction == 'DOWN':
+            self._arr[0] = self._matrix[self._snake.position[1], self._snake.position[0]+1]
+            self._arr[1] = self._matrix[self._snake.position[1]+1, self._snake.position[0]]
+            self._arr[2] = self._matrix[self._snake.position[1]-1, self._snake.position[0]]
+        elif self._snake.direction == 'LEFT':
+            self._arr[0] = self._matrix[self._snake.position[1]-1, self._snake.position[0]]
+            self._arr[1] = self._matrix[self._snake.position[1], self._snake.position[0]+1]
+            self._arr[2] = self._matrix[self._snake.position[1], self._snake.position[0]-1]
+        elif self._snake.direction == 'RIGHT':
+            self._arr[0] = self._matrix[self._snake.position[1]+1, self._snake.position[0]]
+            self._arr[1] = self._matrix[self._snake.position[1], self._snake.position[0]-1]
+            self._arr[2] = self._matrix[self._snake.position[1], self._snake.position[0]+1]
+        self._arr[3] = self.calc_distance(self._snake.position,self.fruit_position)
+        return self._arr
 
     @property
     def score(self):
@@ -184,3 +208,9 @@ class HeadlessSnake:
     @last_position.deleter
     def last_position(self):
         del self._last_position
+
+    @staticmethod
+    def calc_distance(pt1, pt2):
+        x2 = (pt1[0] - pt2[0]) ** 2
+        y2 = (pt1[1] - pt2[1]) ** 2
+        return math.sqrt(x2 + y2)

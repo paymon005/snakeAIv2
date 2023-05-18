@@ -24,27 +24,28 @@ run_dir = now.strftime("%Y_%m_%d___%H_%M_%S")
 if len(sys.argv) > 1:
     run_mode = int(sys.argv[1])
 else:
-    run_mode = 2  # hardcode default run value here
+    run_mode = 1  # hardcode default run value here
 profile_run = False
 
 run_to_load = '2022_11_19___00_45_36'
 model_to_resume = 'Snake_Model-6'
 
-# game_size = [72, 48]
-game_size = [36, 24]
+game_size = [72, 48]
+# game_size = [36, 24]
 snake_speed = 45
-env = SnakeEnv(game_size)
+env = SnakeEnv(game_size, 2)
 score_check_runs = 50000
 accepted_percentile = 1
-initial_games = 200000
-epochs = 50
+initial_games = 500000
+epochs = 100
 keep_rate = 0.8
-LR = 1e-2
+LR = 1e-3
 model_dir = 'Models'
 model_name = 'Snake_Model'
 kickout_sore = -500
 training_driver = DnnDriver(env.action_space_size, model_name, model_dir, run_dir, LR, epochs, keep_rate,
                             profile_run)
+training_driver.check_version()
 
 
 def main():
@@ -59,13 +60,14 @@ def main():
 
 def run_tflearn_trainer():
     if run_mode == 2 or run_mode == 3:  # load model
-        training_driver.observation_space_size = game_size
+        training_driver.observation_space_size = env.observation_space_size
         if run_mode == 3:
             training_driver.load_model(run_to_load, model_to_resume)
         elif run_mode == 2:
             training_driver.load_model()
         run_model(training_driver.model, 10)
         env.close()
+        training_driver.plot_graphs()
     elif run_mode == 1 or run_mode == 4:  # make model
         if run_mode == 1:
             test_run_scores, score_requirement = get_score_requirement(score_check_runs)
@@ -165,7 +167,10 @@ def initial_population(num_of_runs=initial_games, score_requirement=-9e9):
 
 
 def run_model(model, num_of_runs):
-    length = env.game_size[0] * env.game_size[1]
+    if isinstance(env.observation_space_size, int):
+        length = env.observation_space_size
+    else:
+        length = env.game_size[0] * env.game_size[1]
     scores = []
     choices = []
     for each_game in range(num_of_runs):

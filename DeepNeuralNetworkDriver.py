@@ -28,10 +28,17 @@ class DnnDriver:
         self._run_id = run_dir  # 'Snake_Model'
         self._profile_run = profile_run
         self._snapshot_frequency = 5
+        tf.debugging.set_log_device_placement(True)
+        gpus = tf.config.list_physical_devices('GPU')
+        tf.config.set_visible_devices(gpus[0], 'GPU')
 
     def train_model(self, model=False):
         input_shape = self._training_data[0][0].shape
-        length = input_shape[0] * input_shape[1]
+        length = 0
+        if len(input_shape) == 2:
+            length = input_shape[0] * input_shape[1]
+        elif len(input_shape) == 1:
+            length = input_shape[0]
         X = np.array([i[0] for i in self._training_data]).reshape(-1, length, 1)
         y = [i[1] for i in self._training_data]
         if not model:
@@ -41,7 +48,7 @@ class DnnDriver:
                                                                python_tracer_level=1,
                                                                device_tracer_level=1)
             tf.profiler.experimental.start(self._log_dir, options=options)
-        step_snapshot_interval = self._snapshot_frequency * int(len(self._training_data)/64)
+        step_snapshot_interval = self._snapshot_frequency * int(len(self._training_data) / 64)
         print('Fitting the model and snapshotting every ' + str(self._snapshot_frequency) + ' epochs or every ' +
               str(step_snapshot_interval) + ' steps.')
         time.sleep(5)
@@ -62,7 +69,7 @@ class DnnDriver:
                              loss='categorical_crossentropy', name='targets')
         if self._save_checkpoints and self._model_dir is not None:
             checkpoint_dir = os.path.join(self._model_dir, self._run_dir, self._model_name)
-            best_checkpoint_dir = os.path.join(self._model_dir, self._run_dir, 'best-'+self._model_name)
+            best_checkpoint_dir = os.path.join(self._model_dir, self._run_dir, 'best-' + self._model_name)
             self._model = tflearn.DNN(network, tensorboard_dir=self._log_dir, checkpoint_path=checkpoint_dir,
                                       best_checkpoint_path=best_checkpoint_dir, tensorboard_verbose=3)
         else:
@@ -85,15 +92,20 @@ class DnnDriver:
             self._run_dir = run_dir
         final_directory = os.path.join(os.getcwd(), self._model_dir, self._run_dir, run_name)
         if self._observation_space_size is not None:
-            self.neural_network_model(self._observation_space_size[0] * self._observation_space_size[1])
+            if isinstance(self._observation_space_size, int):
+                self.neural_network_model(self._observation_space_size)
+            else:
+                self.neural_network_model(self._observation_space_size[0] * self._observation_space_size[1])
             print('Loading: ' + final_directory)
             self._model.load(final_directory)
         return self._model
 
     def plot_graphs(self):
         os.system("taskkill /IM ""tensorboard.exe"" /F")
-        print("tensorboard --logdir " + self._log_dir)
-        os.system("tensorboard --logdir " + self._log_dir)
+        print(os.getcwd() + "\\venv\\Scripts\\python.exe -m tensorboard.main --logdir=" + self._log_dir)
+        os.system(os.getcwd() + "\\venv\\Scripts\\python.exe -m tensorboard.main --logdir=" + self._log_dir)
+        #  print("tensorboard. --logdir " + self._log_dir)
+        #  os.system("tensorboard --logdir " + self._log_dir)
 
     def get_last_run(self):
         file_nums = []
@@ -120,6 +132,14 @@ class DnnDriver:
         np.load = lambda *a, **k: np_load_old(*a, allow_pickle=True, **k)
         self._training_data = np.load(file_to_load)
         np.load = np_load_old
+
+    @staticmethod
+    def check_version():
+        print('TensorFlow version: ', tf.__version__)
+        device_name = tf.test.gpu_device_name()
+        if not device_name:
+            raise SystemError('GPU device not found')
+        print('Found GPU at: {}'.format(device_name))
 
     @property
     def learning_rate(self):
