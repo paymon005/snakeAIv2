@@ -21,10 +21,11 @@ run_dir = now.strftime("%Y_%m_%d___%H_%M_%S")
 # 3:  Load a specific model and run it
 # 4:  Load the last model and training data and continue training it
 # 5:  Just make training data
+# 6:  Load the last model, create a new training data set with that model, and train it off that
 if len(sys.argv) > 1:
     run_mode = int(sys.argv[1])
 else:
-    run_mode = 1  # hardcode default run value here
+    run_mode = 6  # hardcode default run value here
 profile_run = False
 
 run_to_load = '2022_11_19___00_45_36'
@@ -34,9 +35,9 @@ game_size = [72, 48]
 # game_size = [36, 24]
 snake_speed = 45
 env = SnakeEnv(game_size, 2)
-score_check_runs = 50000
+score_check_runs = 100
 accepted_percentile = 1
-initial_games = 500000
+initial_games = 500
 epochs = 100
 keep_rate = 0.8
 LR = 1e-3
@@ -68,7 +69,7 @@ def run_tflearn_trainer():
         run_model(training_driver.model, 10)
         env.close()
         training_driver.plot_graphs()
-    elif run_mode == 1 or run_mode == 4:  # make model
+    elif run_mode == 1 or run_mode == 4 or run_mode == 6:  # make model
         if run_mode == 1:
             test_run_scores, score_requirement = get_score_requirement(score_check_runs)
             print('Setting ' + str(score_requirement) + ' as the score requirement')
@@ -80,10 +81,20 @@ def run_tflearn_trainer():
                 return
             save_inputs(accepted_scores, test_run_scores, score_requirement)
             training_driver.train_model()
-        elif run_mode == 4:
-            training_driver.observation_space_size = game_size
+        elif run_mode == 4 or run_mode == 6:
+            training_driver.observation_space_size = env.observation_space_size
             model = training_driver.load_model()
-            training_driver.load_training_data()
+            if run_mode == 4:
+                training_driver.load_training_data()
+            elif run_mode == 6:
+                training_driver.change_run_dir(run_dir)
+                test_run_scores, score_requirement = get_score_requirement(score_check_runs, model)
+                print('Setting ' + str(score_requirement) + ' as the score requirement')
+                time.sleep(5)
+                training_driver.create_save_dir(model_dir, run_dir)
+                training_driver.training_data, accepted_scores = new_population(model, initial_games, score_requirement)
+                save_inputs(accepted_scores, test_run_scores, score_requirement)
+                time.sleep(5)
             training_driver.train_model(model)
         final_scores = run_model(training_driver.model, 10)
         env.close()
@@ -96,8 +107,11 @@ def run_tflearn_trainer():
         initial_population(initial_games, score_requirement)
 
 
-def get_score_requirement(num_of_runs):
-    _, accepted_scores = initial_population(num_of_runs)
+def get_score_requirement(num_of_runs, model=None):
+    if model is None:
+        _, accepted_scores = initial_population(num_of_runs)
+    else:
+        _, accepted_scores = new_population(model, num_of_runs)
     idx = int(accepted_percentile * len(accepted_scores) / 100)
     req = sorted(accepted_scores)[len(accepted_scores) - idx - 1]
     return accepted_scores, req
@@ -126,6 +140,66 @@ def initial_population(num_of_runs=initial_games, score_requirement=-9e9):
         prev_observation = []  # previous observation that we saw
         while True:  # for each frame in goal steps
             # action = env.action_space.sample()
+            action = random.randint(0, env.action_space_size - 1)
+            [observation, reward, done, []] = env.step(action)
+            if len(prev_observation) > 0:
+                game_memory.append([prev_observation, action])
+            prev_observation = observation
+            score += reward
+            if done or score < kickout_sore:
+                break
+        if score >= score_requirement:
+            accepted_scores.append(score)
+            for data in game_memory:
+                # convert to one-hot (this is the output layer for our neural network)
+                if data[1] == 0:
+                    output = [1, 0, 0]
+                elif data[1] == 1:
+                    output = [0, 1, 0]
+                elif data[1] == 2:
+                    output = [0, 0, 1]
+                training_data.append([data[0], output])  # saving our training data
+        env.reset()  # reset env to play again
+        scores.append(score)  # save overall scores
+    if score_requirement > -9999999:
+        training_data_save = np.array(training_data)  # just in case you wanted to reference later
+        if run_mode == 5:
+            save_dir = 'training_data.npy'
+        else:
+            save_dir = os.path.join(os.getcwd(), model_dir, training_driver.run_dir, 'training_data.npy')
+        np.save(save_dir, training_data_save)
+    if len(accepted_scores) > 0:
+        print('Number of accepted scores: ', len(accepted_scores))
+        print('Max accepted score: ', max(accepted_scores))
+        print('Average accepted score: ', round(mean(accepted_scores), 0))
+        print('Min accepted score: ', min(accepted_scores))
+        print(Counter(accepted_scores))
+    else:
+        raise Exception('Out of ' + str(initial_games) + ' runs, no one got a score higher than ' +
+                        str(score_requirement) + '.\n' + 'Average score:', mean(scores))
+    return training_data, accepted_scores
+
+
+def new_population(model, num_of_runs=initial_games, score_requirement=-9e9):
+    training_data = []  # [OBS, MOVES]
+    scores = []  # all scores:
+    accepted_scores = []  # just the scores that met our threshold:
+    output = []
+    if isinstance(env.observation_space_size, int):
+        length = env.observation_space_size
+    else:
+        length = env.game_size[0] * env.game_size[1]
+    for _ in tqdm(range(num_of_runs)):  # iterate through however many games we want:
+        score = 0
+        game_memory = []  # moves specifically from this environment:
+        prev_observation = []  # previous observation that we saw
+        prev_obs = []
+        while True:  # for each frame in goal steps
+            # action = env.action_space.sample()
+            if len(prev_obs) == 0:
+                action = random.randrange(0, env.action_space_size)
+            else:
+                action = np.argmax(model.predict(prev_obs.reshape(-1, length, 1))[0])
             action = random.randint(0, env.action_space_size - 1)
             [observation, reward, done, []] = env.step(action)
             if len(prev_observation) > 0:

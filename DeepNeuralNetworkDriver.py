@@ -1,5 +1,4 @@
 import time
-
 import numpy as np
 from tflearn.layers.core import input_data, dropout, fully_connected
 from tflearn.layers.estimator import regression
@@ -132,6 +131,13 @@ class DnnDriver:
         np.load = lambda *a, **k: np_load_old(*a, allow_pickle=True, **k)
         self._training_data = np.load(file_to_load)
         np.load = np_load_old
+
+    def change_run_dir(self, new_run_dir):
+        self._run_dir = new_run_dir
+        checkpoint_dir = os.path.join(self._model_dir, self._run_dir, self._model_name)
+        best_checkpoint_dir = os.path.join(self._model_dir, self._run_dir, 'best-' + self._model_name)
+        self._model.trainer.checkpoint_path = checkpoint_dir
+        self._model.trainer.best_checkpoint_path = best_checkpoint_dir
 
     @staticmethod
     def check_version():

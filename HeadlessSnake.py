@@ -107,22 +107,22 @@ class HeadlessSnake:
         self._matrix = self.update_matrix()
         self._arr = np.array([0, 0, 0, 0])
         if self._snake.direction == 'UP':
-            self._arr[0] = self._matrix[self._snake.position[1], self._snake.position[0]-1]
-            self._arr[1] = self._matrix[self._snake.position[1]-1, self._snake.position[0]]
-            self._arr[2] = self._matrix[self._snake.position[1]+1, self._snake.position[0]]
+            self._arr[0] = self._matrix[self._snake.position[1], self._snake.position[0] - 1]
+            self._arr[1] = self._matrix[self._snake.position[1] - 1, self._snake.position[0]]
+            self._arr[2] = self._matrix[self._snake.position[1] + 1, self._snake.position[0]]
         elif self._snake.direction == 'DOWN':
-            self._arr[0] = self._matrix[self._snake.position[1], self._snake.position[0]+1]
-            self._arr[1] = self._matrix[self._snake.position[1]+1, self._snake.position[0]]
-            self._arr[2] = self._matrix[self._snake.position[1]-1, self._snake.position[0]]
+            self._arr[0] = self._matrix[self._snake.position[1], self._snake.position[0] + 1]
+            self._arr[1] = self._matrix[self._snake.position[1] + 1, self._snake.position[0]]
+            self._arr[2] = self._matrix[self._snake.position[1] - 1, self._snake.position[0]]
         elif self._snake.direction == 'LEFT':
-            self._arr[0] = self._matrix[self._snake.position[1]-1, self._snake.position[0]]
-            self._arr[1] = self._matrix[self._snake.position[1], self._snake.position[0]+1]
-            self._arr[2] = self._matrix[self._snake.position[1], self._snake.position[0]-1]
+            self._arr[0] = self._matrix[self._snake.position[1] - 1, self._snake.position[0]]
+            self._arr[1] = self._matrix[self._snake.position[1], self._snake.position[0] + 1]
+            self._arr[2] = self._matrix[self._snake.position[1], self._snake.position[0] - 1]
         elif self._snake.direction == 'RIGHT':
-            self._arr[0] = self._matrix[self._snake.position[1]+1, self._snake.position[0]]
-            self._arr[1] = self._matrix[self._snake.position[1], self._snake.position[0]-1]
-            self._arr[2] = self._matrix[self._snake.position[1], self._snake.position[0]+1]
-        self._arr[3] = self.calc_distance(self._snake.position,self.fruit_position)
+            self._arr[0] = self._matrix[self._snake.position[1] + 1, self._snake.position[0]]
+            self._arr[1] = self._matrix[self._snake.position[1], self._snake.position[0] - 1]
+            self._arr[2] = self._matrix[self._snake.position[1], self._snake.position[0] + 1]
+        self._arr[3] = self.calc_distance(self._snake.position, self.fruit_position)
         return self._arr
 
     @property
