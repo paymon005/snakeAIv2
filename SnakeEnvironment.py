@@ -17,21 +17,21 @@ class SnakeEnv(gym.Env):
         self._towards_weight = 1
         self._away_weight = 0
         self._last_score = 0
-        self._last_obs = None
         self._window = None
         self._fps = None
-        self._state = None
         self._x = 0
         self._y = 0
         self._game_size = game_size
         self._observation_type = observation_type
-        if self._observation_type == 1:
-            self._observation_space_size = game_size
-        elif self._observation_type == 2:
-            self._observation_space_size = 4
         self._reward_range = (0, 200)
         self._action_space_size = 3
         self._controller = HeadlessSnake(game_size)
+        if self._observation_type == 1:
+            self._observation_space_size = game_size
+            self._state = self._controller.update_matrix()
+        elif self._observation_type == 2:
+            self._observation_space_size = 4
+            self._state = self._controller.get_array()
         self._action_space = spaces.Discrete(self._action_space_size)  # 0 = empty,1 = wall,2 = player,3 = body,4 = food
         # self.observation_space = spaces.Box(low=np.zeros(self.game_size),
         #                                    high=np.ones(self.game_size),
@@ -54,9 +54,12 @@ class SnakeEnv(gym.Env):
         return self._state, rewards, done, []
 
     def reset(self, *, seed=None, return_info=False, options=None):
-        self._state = None
         del self._controller
         self._controller = HeadlessSnake(self.game_size)
+        if self._observation_type == 1:
+            self._state = self._controller.update_matrix()
+        elif self._observation_type == 2:
+            self._state = self._controller.get_array()
 
     def render(self, mode='human', close=False):
         if self._window is None:
@@ -177,6 +180,18 @@ class SnakeEnv(gym.Env):
     @game_size.deleter
     def game_size(self):
         del self._game_size
+
+    @property
+    def state(self):
+        return self._state
+
+    @state.setter
+    def state(self, value):
+        self._state = value
+
+    @state.deleter
+    def state(self):
+        del self._state
 
     @property
     def observation_space_size(self):
