@@ -5,13 +5,14 @@ from tflearn.layers.estimator import regression
 import tflearn
 import os
 import tensorflow as tf
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 
 class DnnDriver:
 
-    def __init__(self, action_space_size, model_name='DNN_Model', model_dir='Models', run_dir='Snake',
+    def __init__(self, model_name='DNN_Model', model_dir='Models', run_dir='Snake',
                  learning_rate=1e-3, epochs=5, keep_probability=0.8, profile_run=False, observation_space_size=None):
-        self._action_space_size = action_space_size
+        self._action_space_size = 3
         self._observation_space_size = observation_space_size
         self._model_name = model_name
         self._epochs = epochs
