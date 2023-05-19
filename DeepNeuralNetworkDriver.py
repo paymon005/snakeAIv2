@@ -11,9 +11,11 @@ tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 class DnnDriver:
 
     def __init__(self, model_name='DNN_Model', model_dir='Models', run_dir='Snake',
-                 learning_rate=1e-3, epochs=5, keep_probability=0.8, profile_run=False, observation_space_size=None):
+                 learning_rate=1e-3, epochs=5, keep_probability=0.8, profile_run=False, observation_space_size=None,
+                 observation_space_length=None):
         self._action_space_size = 3
         self._observation_space_size = observation_space_size
+        self._observation_space_length = observation_space_length
         self._model_name = model_name
         self._epochs = epochs
         self._learning_rate = learning_rate
@@ -85,7 +87,13 @@ class DnnDriver:
     def save_model(self):
         self._model.save(self._model_dir + '\\' + self._run_dir)
 
-    def load_model(self, run_dir=None, run_name=None):
+    def load_model(self, run_loc=None):
+        if run_loc is None:
+            run_name = None
+            run_dir = None
+        else:
+            run_dir = run_loc[0]
+            run_name = run_loc[1]
         if run_name is None or run_dir is None:
             run_name = self.get_last_run()
         else:
@@ -267,6 +275,18 @@ class DnnDriver:
     @observation_space_size.deleter
     def observation_space_size(self):
         del self._observation_space_size
+
+    @property
+    def observation_space_length(self):
+        return self._observation_space_length
+
+    @observation_space_length.setter
+    def observation_space_length(self, value):
+        self._observation_space_length = value
+
+    @observation_space_length.deleter
+    def observation_space_length(self):
+        del self._observation_space_length
 
     @property
     def model(self):
