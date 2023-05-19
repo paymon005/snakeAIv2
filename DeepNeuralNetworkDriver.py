@@ -69,6 +69,7 @@ class DnnDriver:
             self._model = tflearn.DNN(network, tensorboard_dir=self._log_dir)
         return self._model
 
+
     @staticmethod
     def create_save_dir(model_dir, run_dir):
         save_dir = os.path.join(os.getcwd(), model_dir, run_dir)
@@ -123,6 +124,7 @@ class DnnDriver:
             file_to_load = os.path.join(os.getcwd(), self._model_dir, run_dir_to_load, 'training_data.npy')
         else:
             file_to_load = os.path.join(os.getcwd(), self._model_dir, self._run_dir, 'training_data.npy')
+        print('Loading: ' + file_to_load)
         np_load_old = np.load
         np.load = lambda *a, **k: np_load_old(*a, allow_pickle=True, **k)
         self._training_data = np.load(file_to_load)

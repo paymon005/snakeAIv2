@@ -24,9 +24,9 @@ game_size = [72, 48]
 # game_size = [36, 24]
 snake_speed = 45
 observation_space_type = 2  # 1 for entire matrix, 2 for array of perception
-score_check_runs = 100
+score_check_runs = 50000
 accepted_percentile = 95
-initial_games = 100
+initial_games = 1000000
 epochs = 100
 keep_rate = 0.8
 LR = 0.01
@@ -36,14 +36,16 @@ kickout_sore = -500
 
 
 def main():
-    load_model = False
-    load_specific_model = False
-    generate_training_data = True
-    load_training_data = False
+    # True
+    # False
+    load_model = True
+    load_specific_model = True
+    generate_training_data = False
+    load_training_data = True
     load_specific_training_data = False
-    train_model = True
-    plot_graphs = False
-    run_to_load = ['2022_11_19___00_45_36', 'Snake_Model-6']
+    train_model = False
+    plot_graphs = True
+    run_to_load = ['2023_05_19___01_00_11', 'Snake_Model-2177208']
     training_data_to_load = ['2022_11_19___00_45_36']
     [run_to_load, training_data_to_load] = parse_inputs(load_model, load_specific_model, generate_training_data,
                                                         load_training_data, load_specific_training_data,

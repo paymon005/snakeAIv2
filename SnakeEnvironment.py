@@ -14,7 +14,7 @@ class SnakeEnv(gym.Env):
         self._score_weight = 100
         self._dead_weight = -50
         self._loop_weight = -10
-        self._towards_weight = 0
+        self._towards_weight = 1
         self._away_weight = 0
         self._last_score = 0
         self._window = None

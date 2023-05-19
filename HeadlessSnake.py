@@ -105,7 +105,6 @@ class HeadlessSnake:
 
     def get_array(self):
         self._matrix = self.update_matrix()
-        self._arr = np.array([0, 0, 0, 0])
         if self._snake.direction == 'UP':
             self._arr[0] = self._matrix[self._snake.position[1] - 1, self._snake.position[0]]
             self._arr[1] = self._matrix[self._snake.position[1], self._snake.position[0] - 1]
