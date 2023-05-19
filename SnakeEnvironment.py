@@ -28,9 +28,11 @@ class SnakeEnv(gym.Env):
         self._controller = HeadlessSnake(game_size)
         if self._observation_type == 1:
             self._observation_space_size = game_size
+            self._observation_space_length = game_size[0] * game_size[1]
             self._state = self._controller.update_matrix()
         elif self._observation_type == 2:
             self._observation_space_size = 4
+            self._observation_space_length = self._observation_space_size
             self._state = self._controller.get_array()
         self._action_space = spaces.Discrete(self._action_space_size)  # 0 = empty,1 = wall,2 = player,3 = body,4 = food
         # self.observation_space = spaces.Box(low=np.zeros(self.game_size),
@@ -204,6 +206,18 @@ class SnakeEnv(gym.Env):
     @observation_space_size.deleter
     def observation_space_size(self):
         del self._observation_space_size
+
+    @property
+    def observation_space_length(self):
+        return self._observation_space_length
+
+    @observation_space_length.setter
+    def observation_space_length(self, value):
+        self._observation_space_length = value
+
+    @observation_space_length.deleter
+    def observation_space_length(self):
+        del self._observation_space_length
 
     @property
     def action_space(self):
