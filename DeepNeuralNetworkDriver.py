@@ -34,17 +34,9 @@ class DnnDriver:
         gpus = tf.config.list_physical_devices('GPU')
         tf.config.set_visible_devices(gpus[0], 'GPU')
 
-    def train_model(self, model=False):
-        input_shape = self._training_data[0][0].shape
-        length = 0
-        if len(input_shape) == 2:
-            length = input_shape[0] * input_shape[1]
-        elif len(input_shape) == 1:
-            length = input_shape[0]
-        X = np.array([i[0] for i in self._training_data]).reshape(-1, length, 1)
+    def train_model(self):
+        X = np.array([i[0] for i in self._training_data]).reshape(-1, self._observation_space_length, 1)
         y = [i[1] for i in self._training_data]
-        if not model:
-            model = self.neural_network_model(len(X[0]))
         if self._profile_run:
             options = tf.profiler.experimental.ProfilerOptions(host_tracer_level=3,
                                                                python_tracer_level=1,
@@ -54,15 +46,14 @@ class DnnDriver:
         print('Fitting the model and snapshotting every ' + str(self._snapshot_frequency) + ' epochs or every ' +
               str(step_snapshot_interval) + ' steps.')
         time.sleep(5)
-        model.fit({'input': X}, {'targets': y}, n_epoch=self._epochs, snapshot_epoch=False, show_metric=True,
-                  run_id=self._run_id, snapshot_step=step_snapshot_interval)
+        self.model.fit({'input': X}, {'targets': y}, n_epoch=self._epochs, snapshot_epoch=False, show_metric=True,
+                       run_id=self._run_id, snapshot_step=step_snapshot_interval)
         if self._profile_run:
             tf.profiler.experimental.stop()
-        return model
 
-    def neural_network_model(self, input_length):
+    def neural_network_model(self):
         tflearn.init_graph(num_cores=8, gpu_memory_fraction=0.5)
-        network = input_data(shape=[None, input_length, 1], name='input')
+        network = input_data(shape=[None, self.observation_space_length, 1], name='input')
         for i in range(0, len(self._layers)):
             network = fully_connected(network, self._layers[i], activation='relu')
             network = dropout(network, self._keep_probability)
@@ -99,13 +90,9 @@ class DnnDriver:
         else:
             self._run_dir = run_dir
         final_directory = os.path.join(os.getcwd(), self._model_dir, self._run_dir, run_name)
-        if self._observation_space_size is not None:
-            if isinstance(self._observation_space_size, int):
-                self.neural_network_model(self._observation_space_size)
-            else:
-                self.neural_network_model(self._observation_space_size[0] * self._observation_space_size[1])
-            print('Loading: ' + final_directory)
-            self._model.load(final_directory)
+        self.neural_network_model()
+        print('Loading: ' + final_directory)
+        self._model.load(final_directory)
         return self._model
 
     def plot_graphs(self):
