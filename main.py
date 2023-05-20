@@ -26,7 +26,7 @@ snake_speed = 45
 observation_space_type = 2  # 1 for entire matrix, 2 for array of perception
 score_check_runs = 500
 accepted_percentile = 5
-initial_games = 5000
+initial_games = 2500
 epochs = 10
 keep_rate = 0.85
 LR = 0.001
@@ -46,13 +46,13 @@ def main():
     # True
     # False
     reward_system = 0  # 0: old, 1: new
-    load_model = True
+    load_model = False
     load_specific_model = False
-    generate_training_data = False
-    load_training_data = True
+    generate_training_data = True
+    load_training_data = False
     load_specific_training_data = False
     train_model = True
-    recursive_training = True
+    recursive_training = False
     plot_graphs = False
 
     now = datetime.now()  # current date and time
@@ -383,9 +383,9 @@ def clean_model_dir():
     model_folders = os.listdir(model_dir)
     for model_folder in model_folders:
         files = []
-        for (dir_path, dir_names, file_names) in os.walk(model_folder):
+        for (dir_path, dir_names, file_names) in os.walk(model_dir + '\\' + model_folder):
             for file in file_names:
-                files.append(dir_path + '\\' + file)
+                files.append(file)
         if len(files) == 0:
             shutil.rmtree(os.path.join(model_dir, model_folder))
 
