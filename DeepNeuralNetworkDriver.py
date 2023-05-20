@@ -5,24 +5,22 @@ from tflearn.layers.estimator import regression
 import tflearn
 import os
 import tensorflow as tf
-import glob
-
-tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 
 class DnnDriver:
 
-    def __init__(self, model_name='DNN_Model', model_dir='Models', run_dir='Snake',
-                 learning_rate=1e-3, epochs=5, keep_probability=0.8, profile_run=False, observation_space_size=None,
-                 observation_space_length=None):
+    def __init__(self, model_name='DNN_Model', model_dir='Models', run_dir='Snake', learning_rate=1e-3,
+                 epochs=5, keep_probability=0.8, num_of_cores=8, gpu_mem=0.4, train_type=None,profile_run=False):
         self._action_space_size = 3
-        self._observation_space_length = observation_space_length
+        self._observation_space_length = None
+        self._num_of_cores = num_of_cores
+        self._gpu_mem = gpu_mem
         self._model_name = model_name
         self._epochs = epochs
         self._learning_rate = learning_rate
         self._keep_probability = keep_probability
-        self._layers = [128, 256, 512, 256, 128]
-        self._activations = ['relu', 'relu', 'relu', 'relu', 'relu']
+        self._layers = [25]
+        self._activations = ['relu']
         self._model = None
         self._training_data = None
         self._save_checkpoints = True
@@ -33,6 +31,7 @@ class DnnDriver:
         self._profile_run = profile_run
         self._snapshot_frequency = 5
         self._output_size = self._action_space_size
+        self._train_type = train_type
         tf.debugging.set_log_device_placement(True)
         gpus = tf.config.list_physical_devices('GPU')
         tf.config.set_visible_devices(gpus[0], 'GPU')
@@ -56,14 +55,14 @@ class DnnDriver:
             tf.profiler.experimental.stop()
 
     def neural_network_model(self):
-        tflearn.init_graph(num_cores=4, gpu_memory_fraction=0.35)
+        tflearn.init_graph(num_cores=self._num_of_cores, gpu_memory_fraction=self._gpu_mem)
         network = input_data(shape=[None, self.observation_space_length, 1], name='input')
         for i in range(0, len(self._layers)):
             network = fully_connected(network, self._layers[i], activation=self._activations[i])
             network = dropout(network, self._keep_probability)
-        network = fully_connected(network, self._output_size, activation='softmax')
+        network = fully_connected(network, self._output_size, activation='linear')
         network = regression(network, optimizer='adam', learning_rate=self._learning_rate,
-                             loss='categorical_crossentropy', name='targets')
+                             loss='mean_square', name='targets')
         if self._save_checkpoints and self._model_dir is not None:
             checkpoint_dir = os.path.join(self._model_dir, self._run_dir, self._model_name)
             best_checkpoint_dir = os.path.join(self._model_dir, self._run_dir, 'best-' + self._model_name)
@@ -318,3 +317,39 @@ class DnnDriver:
     @save_checkpoints.deleter
     def save_checkpoints(self):
         del self._save_checkpoints
+
+    @property
+    def num_of_cores(self):
+        return self._num_of_cores
+
+    @num_of_cores.setter
+    def num_of_cores(self, value):
+        self._num_of_cores = value
+
+    @num_of_cores.deleter
+    def num_of_cores(self):
+        del self._num_of_cores
+
+    @property
+    def gpu_mem(self):
+        return self._gpu_mem
+
+    @gpu_mem.setter
+    def gpu_mem(self, value):
+        self._gpu_mem = value
+
+    @gpu_mem.deleter
+    def gpu_mem(self):
+        del self._gpu_mem
+
+    @property
+    def train_type(self):
+        return self._train_type
+
+    @train_type.setter
+    def train_type(self, value):
+        self._train_type = value
+
+    @train_type.deleter
+    def train_type(self):
+        del self._train_type
