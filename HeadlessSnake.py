@@ -91,7 +91,7 @@ class HeadlessSnake:
                 self._snake.direction = 'DOWN'
 
     def update_matrix(self):
-        # 0 = empty, 1 = obstacle/body, 2 = player, 3 = food
+        # 0 = empty, 1 = obstacle/body, 3 = player, 2 = food
         self._matrix = np.zeros((self._game_size[1], self._game_size[0]))
         self._matrix[:, 0] = 1
         self._matrix[:, self._game_size[0] - 1] = 1
@@ -99,43 +99,40 @@ class HeadlessSnake:
         self._matrix[self._game_size[1] - 1, :] = 1
         for part in self._snake.body:
             self._matrix[part[1], part[0]] = 1
-        self._matrix[self.fruit_position[1], self.fruit_position[0]] = 3
-        self._matrix[self._snake.position[1], self._snake.position[0]] = 2
+        self._matrix[self.fruit_position[1], self.fruit_position[0]] = 2
+        self._matrix[self._snake.position[1], self._snake.position[0]] = 3
         return self._matrix
 
     def get_array(self):
         self._matrix = self.update_matrix()
-        self._observation_array = np.array([0, 0, 0, 0, 0])
+        self._observation_array = np.array([])
+        whats_left = 0
+        whats_right = 0
+        whats_in_front = 0
         if self._snake.direction == 'UP':
-            self._observation_array[0] = self._matrix[self._snake.position[1] - 1, self._snake.position[0]]
-            self._observation_array[1] = self._matrix[self._snake.position[1], self._snake.position[0] - 1]
-            self._observation_array[2] = self._matrix[self._snake.position[1], self._snake.position[0] + 1]
+            whats_left = self._matrix[self._snake.position[1] - 1, self._snake.position[0]] - 1
+            whats_right = self._matrix[self._snake.position[1], self._snake.position[0] - 1] - 1
+            whats_in_front = self._matrix[self._snake.position[1], self._snake.position[0] + 1] - 1
         elif self._snake.direction == 'DOWN':
-            self._observation_array[0] = self._matrix[self._snake.position[1] + 1, self._snake.position[0]]
-            self._observation_array[1] = self._matrix[self._snake.position[1], self._snake.position[0] + 1]
-            self._observation_array[2] = self._matrix[self._snake.position[1], self._snake.position[0] - 1]
+            whats_left = self._matrix[self._snake.position[1] + 1, self._snake.position[0]] - 1
+            whats_right = self._matrix[self._snake.position[1], self._snake.position[0] + 1] - 1
+            whats_in_front = self._matrix[self._snake.position[1], self._snake.position[0] - 1] - 1
         elif self._snake.direction == 'LEFT':
-            self._observation_array[0] = self._matrix[self._snake.position[1], self._snake.position[0] - 1]
-            self._observation_array[1] = self._matrix[self._snake.position[1] + 1, self._snake.position[0]]
-            self._observation_array[2] = self._matrix[self._snake.position[1] - 1, self._snake.position[0]]
+            whats_left = self._matrix[self._snake.position[1], self._snake.position[0] - 1] - 1
+            whats_right = self._matrix[self._snake.position[1] + 1, self._snake.position[0]] - 1
+            whats_in_front = self._matrix[self._snake.position[1] - 1, self._snake.position[0]] - 1
         elif self._snake.direction == 'RIGHT':
-            self._observation_array[0] = self._matrix[self._snake.position[1], self._snake.position[0] + 1]
-            self._observation_array[1] = self._matrix[self._snake.position[1] - 1, self._snake.position[0]]
-            self._observation_array[2] = self._matrix[self._snake.position[1] + 1, self._snake.position[0]]
+            whats_left = self._matrix[self._snake.position[1], self._snake.position[0] + 1] - 1
+            whats_right = self._matrix[self._snake.position[1] - 1, self._snake.position[0]] - 1
+            whats_in_front = self._matrix[self._snake.position[1] + 1, self._snake.position[0]] - 1
 
-        if self._snake.position[0] > self._fruit_position[0]:  # we are above the fruit
-            self._observation_array[3] = 1
-        elif self._snake.position[0] < self._fruit_position[0]:  # we are below the fruit
-            self._observation_array[3] = -1
-        else:
-            self._observation_array[3] = 0  # we are on the same x-axis the fruit
+        normal_angle = get_normalized_angle(self._snake.position[1], self._snake.position[0],
+                                            self._fruit_position[1], self._fruit_position[0])
 
-        if self._snake.position[1] > self._fruit_position[1]:  # we are right the fruit
-            self._observation_array[4] = 1
-        elif self._snake.position[1] < self._fruit_position[1]:  # we are left the fruit
-            self._observation_array[4] = -1
-        else:
-            self._observation_array[4] = 0  # we are on the same y-axis the fruit
+        self._observation_array = np.append(self._observation_array, whats_left)
+        self._observation_array = np.append(self._observation_array, whats_right)
+        self._observation_array = np.append(self._observation_array, whats_in_front)
+        self._observation_array = np.append(self._observation_array, normal_angle)
         return self._observation_array
 
     @property
@@ -239,3 +236,27 @@ class HeadlessSnake:
         x2 = (pt1[0] - pt2[0]) ** 2
         y2 = (pt1[1] - pt2[1]) ** 2
         return math.sqrt(x2 + y2)
+
+
+def get_normalized_angle(x1, y1, x2, y2):
+    angle = 0
+    if y1 < y2:
+        if x1 < x2:
+            angle = abs(math.degrees(math.atan((y2 - y1) / (x2 - x1))))
+        elif x1 > x2:
+            angle = abs(math.degrees(math.atan((y2 - y1) / (x2 - x1)))) + 90
+        else:
+            angle = 90
+    elif y1 > y2:
+        if x1 < x2:
+            angle = -abs(math.degrees(math.atan((y2 - y1) / (x2 - x1))))
+        elif x1 > x2:
+            angle = -abs(math.degrees(math.atan((y2 - y1) / (x2 - x1)))) - 90
+        else:
+            angle = -90
+    else:
+        if x1 <= x2:
+            angle = 0
+        elif x1 > x2:
+            angle = -180
+    return angle / 180
