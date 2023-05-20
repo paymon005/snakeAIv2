@@ -5,15 +5,14 @@ from gym import spaces
 from HeadlessSnake import HeadlessSnake
 from ctypes import windll, Structure, c_long, byref
 
-
 class SnakeEnv(gym.Env):
     metadata = {'render.modes': ['human']}
 
     def __init__(self, game_size, observation_type):
         self._alive_weight = 0
         self._score_weight = 100
-        self._dead_weight = -100
-        self._loop_weight = -10
+        self._dead_weight = -1
+        self._loop_weight = -3
         self._towards_weight = 1
         self._away_weight = 0
         self._last_score = 0
@@ -67,6 +66,7 @@ class SnakeEnv(gym.Env):
             self._window = pygame.display.set_mode((self._controller.window_x, self._controller.window_y))
             self._x = pygame.display.Info().current_w
             self._y = pygame.display.Info().current_h
+            on_top(pygame.display.get_wm_info()['window'])
         self.draw_game()
         on_top(pygame.display.get_wm_info()['window'])
         pygame.event.pump()
