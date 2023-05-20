@@ -12,7 +12,7 @@ class SnakeEnv(gym.Env):
     def __init__(self, game_size, observation_type):
         self._alive_weight = 0
         self._score_weight = 100
-        self._dead_weight = -50
+        self._dead_weight = -100
         self._loop_weight = -10
         self._towards_weight = 1
         self._away_weight = 0
@@ -31,8 +31,8 @@ class SnakeEnv(gym.Env):
             self._observation_space_length = game_size[0] * game_size[1]
             self._state = self._controller.update_matrix()
         elif self._observation_type == 2:
-            self._observation_space_size = 4
-            self._observation_space_length = self._observation_space_size
+            self._observation_space_size = [self._controller.array_length, 1]
+            self._observation_space_length = self._controller.array_length
             self._state = self._controller.get_array()
         self._action_space = spaces.Discrete(self._action_space_size)  # 0 = empty,1 = wall,2 = player,3 = body,4 = food
         # self.observation_space = spaces.Box(low=np.zeros(self.game_size),
@@ -53,7 +53,7 @@ class SnakeEnv(gym.Env):
             elif self._observation_type == 2:
                 self._state = self._controller.get_array()
         rewards = self.calculate_reward()
-        return self._state, rewards, done, []
+        return self._state, rewards, done
 
     def reset(self, *, seed=None, return_info=False, options=None):
         del self._controller
