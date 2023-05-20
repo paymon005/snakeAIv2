@@ -20,7 +20,8 @@ class DnnDriver:
         self._epochs = epochs
         self._learning_rate = learning_rate
         self._keep_probability = keep_probability
-        self._layers = [128, 256, 512, 256, 128]
+        self._layers = [32, 32]
+        self._activations = ['linear', 'linear']
         self._model = None
         self._training_data = None
         self._save_checkpoints = True
@@ -55,11 +56,11 @@ class DnnDriver:
         tflearn.init_graph(num_cores=8, gpu_memory_fraction=0.5)
         network = input_data(shape=[None, self.observation_space_length, 1], name='input')
         for i in range(0, len(self._layers)):
-            network = fully_connected(network, self._layers[i], activation='relu')
+            network = fully_connected(network, self._layers[i], activation=self._activations[i])
             network = dropout(network, self._keep_probability)
         network = fully_connected(network, self._action_space_size, activation='softmax')
         network = regression(network, optimizer='adam', learning_rate=self._learning_rate,
-                             loss='categorical_crossentropy', name='targets')
+                             loss='mean_square', name='targets')
         if self._save_checkpoints and self._model_dir is not None:
             checkpoint_dir = os.path.join(self._model_dir, self._run_dir, self._model_name)
             best_checkpoint_dir = os.path.join(self._model_dir, self._run_dir, 'best-' + self._model_name)
