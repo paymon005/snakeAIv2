@@ -28,8 +28,7 @@ class HeadlessSnake:
         self._matrix[:, self._window_y - 1] = 1
         self._matrix[0, :] = 1
         self._matrix[self._window_x - 1, :] = 1
-        self._observation_array_length = 5
-        self._observation_array = np.zeros((self._observation_array_length,), dtype=int)
+        self._observation_array = None
 
     def spawn_fruit(self):
         while self._fruit_position in self._snake.body or self._fruit_position == self._snake.position:
@@ -106,6 +105,7 @@ class HeadlessSnake:
 
     def get_array(self):
         self._matrix = self.update_matrix()
+        self._observation_array = np.array([0, 0, 0, 0, 0])
         if self._snake.direction == 'UP':
             self._observation_array[0] = self._matrix[self._snake.position[1] - 1, self._snake.position[0]]
             self._observation_array[1] = self._matrix[self._snake.position[1], self._snake.position[0] - 1]
@@ -136,7 +136,6 @@ class HeadlessSnake:
             self._observation_array[4] = -1
         else:
             self._observation_array[4] = 0  # we are on the same y-axis the fruit
-
         return self._observation_array
 
     @property

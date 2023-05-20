@@ -5,6 +5,8 @@ from tflearn.layers.estimator import regression
 import tflearn
 import os
 import tensorflow as tf
+import glob
+
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 
@@ -14,14 +16,13 @@ class DnnDriver:
                  learning_rate=1e-3, epochs=5, keep_probability=0.8, profile_run=False, observation_space_size=None,
                  observation_space_length=None):
         self._action_space_size = 3
-        self._observation_space_size = observation_space_size
         self._observation_space_length = observation_space_length
         self._model_name = model_name
         self._epochs = epochs
         self._learning_rate = learning_rate
         self._keep_probability = keep_probability
-        self._layers = [32, 32]
-        self._activations = ['linear', 'linear']
+        self._layers = [128, 256, 512, 256, 128]
+        self._activations = ['relu', 'relu', 'relu', 'relu', 'relu']
         self._model = None
         self._training_data = None
         self._save_checkpoints = True
@@ -31,13 +32,15 @@ class DnnDriver:
         self._run_id = run_dir  # 'Snake_Model'
         self._profile_run = profile_run
         self._snapshot_frequency = 5
+        self._output_size = self._action_space_size
         tf.debugging.set_log_device_placement(True)
         gpus = tf.config.list_physical_devices('GPU')
         tf.config.set_visible_devices(gpus[0], 'GPU')
 
     def train_model(self):
-        X = np.array([i[0] for i in self._training_data]).reshape(-1, self._observation_space_length, 1)
-        y = [i[1] for i in self._training_data]
+        input_length = len(self.training_data[0][0])
+        X = np.array([i[0] for i in self._training_data]).reshape(-1, input_length, 1)
+        y = np.array([i[1] for i in self._training_data]).reshape(-1, self._output_size)
         if self._profile_run:
             options = tf.profiler.experimental.ProfilerOptions(host_tracer_level=3,
                                                                python_tracer_level=1,
@@ -53,14 +56,14 @@ class DnnDriver:
             tf.profiler.experimental.stop()
 
     def neural_network_model(self):
-        tflearn.init_graph(num_cores=8, gpu_memory_fraction=0.5)
+        tflearn.init_graph(num_cores=4, gpu_memory_fraction=0.35)
         network = input_data(shape=[None, self.observation_space_length, 1], name='input')
         for i in range(0, len(self._layers)):
             network = fully_connected(network, self._layers[i], activation=self._activations[i])
             network = dropout(network, self._keep_probability)
-        network = fully_connected(network, self._action_space_size, activation='softmax')
+        network = fully_connected(network, self._output_size, activation='softmax')
         network = regression(network, optimizer='adam', learning_rate=self._learning_rate,
-                             loss='mean_square', name='targets')
+                             loss='categorical_crossentropy', name='targets')
         if self._save_checkpoints and self._model_dir is not None:
             checkpoint_dir = os.path.join(self._model_dir, self._run_dir, self._model_name)
             best_checkpoint_dir = os.path.join(self._model_dir, self._run_dir, 'best-' + self._model_name)
@@ -69,7 +72,6 @@ class DnnDriver:
         else:
             self._model = tflearn.DNN(network, tensorboard_dir=self._log_dir)
         return self._model
-
 
     @staticmethod
     def create_save_dir(model_dir, run_dir):
@@ -88,14 +90,33 @@ class DnnDriver:
             run_dir = run_loc[0]
             run_name = run_loc[1]
         if run_name is None or run_dir is None:
-            run_name = self.get_last_run()
+            [model_to_load, self._run_dir] = self.get_last_run()
+            final_directory = os.path.join(os.getcwd(), model_to_load)
         else:
             self._run_dir = run_dir
-        final_directory = os.path.join(os.getcwd(), self._model_dir, self._run_dir, run_name)
+            final_directory = os.path.join(os.getcwd(), self._model_dir, self._run_dir, run_name)
         self.neural_network_model()
         print('Loading: ' + final_directory)
         self._model.load(final_directory)
         return self._model
+
+    def get_last_run(self):
+        model_to_load = None
+        run_dir = []
+        files = []
+        for (dir_path, dir_names, file_names) in os.walk(self._model_dir):
+            for file in file_names:
+                files.append(dir_path + '\\' + file)
+        files = sorted(files, key=os.path.getctime, reverse=True)
+        for file in files:
+            if file.endswith('.meta'):
+                model_to_load = file.split('.')[0]
+                tmp = model_to_load.split('\\')
+                run_dir = '\\'.join(tmp[1:-1])
+                break
+        if model_to_load is None:
+            raise Exception('\n\nNo models to load!')
+        return model_to_load, run_dir
 
     def plot_graphs(self):
         os.system("taskkill /IM ""tensorboard.exe"" /F")
@@ -103,22 +124,6 @@ class DnnDriver:
         os.system(os.getcwd() + "\\venv\\Scripts\\python.exe -m tensorboard.main --logdir=" + self._log_dir)
         #  print("tensorboard. --logdir " + self._log_dir)
         #  os.system("tensorboard --logdir " + self._log_dir)
-
-    def get_last_run(self):
-        file_nums = []
-        files = []
-        folders = os.listdir(self._model_dir)
-        for i in reversed(range(len(folders))):
-            files = os.listdir(self._model_dir + '\\' + folders[i])
-            if len(files) > 0:
-                self._run_dir = folders[i]
-                break
-        for file in files:
-            tmp = file.split('-')
-            if len(tmp) == 5:
-                file_nums.append(int(tmp[1].split('.')[0]))
-        last_run = self._model_name + '-' + str(max(file_nums))
-        return last_run
 
     def load_training_data(self, run_dir_to_load=None):
         if run_dir_to_load is not None:
@@ -205,6 +210,18 @@ class DnnDriver:
     @run_id.deleter
     def run_id(self):
         del self._run_id
+
+    @property
+    def output_size(self):
+        return self._output_size
+
+    @output_size.setter
+    def output_size(self, value):
+        self._output_size = value
+
+    @output_size.deleter
+    def output_size(self):
+        del self._output_size
 
     @property
     def action_space_size(self):

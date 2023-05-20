@@ -27,14 +27,11 @@ class SnakeEnv(gym.Env):
         self._action_space_size = 3
         self._controller = HeadlessSnake(game_size)
         if self._observation_type == 1:
-            self._observation_space_size = game_size
-            self._observation_space_length = game_size[0] * game_size[1]
             self._state = self._controller.update_matrix()
         elif self._observation_type == 2:
-            self._observation_space_size = [self._controller.array_length, 1]
-            self._observation_space_length = self._controller.array_length
             self._state = self._controller.get_array()
-        self._action_space = spaces.Discrete(self._action_space_size)  # 0 = empty,1 = wall,2 = player,3 = body,4 = food
+        self._observation_space_length = self._state.size
+        self._action_space = spaces.Discrete(self._action_space_size)
         # self.observation_space = spaces.Box(low=np.zeros(self.game_size),
         #                                    high=np.ones(self.game_size),
         #                                    dtype=np.int)   # 0 = up, 1 = down, 2 = left, 3 = right
@@ -59,7 +56,7 @@ class SnakeEnv(gym.Env):
         del self._controller
         self._controller = HeadlessSnake(self.game_size)
         if self._observation_type == 1:
-            self._state = self._controller.update_matrix()
+            self._state = self._controller.update_matrix().flatten()
         elif self._observation_type == 2:
             self._state = self._controller.get_array()
 
@@ -88,6 +85,7 @@ class SnakeEnv(gym.Env):
             return "TURN_RIGHT"
 
     def calculate_reward(self):
+        reward = 0
         score_diff = self._controller.score - self._last_score
         fruit_distance_old = self.calc_distance(self._controller.fruit_position, self._controller.last_position[0])
         fruit_distance_new = self.calc_distance(self._controller.fruit_position, self._controller.snake.position)
@@ -96,7 +94,7 @@ class SnakeEnv(gym.Env):
         for pos in self._controller.last_position:
             self_distance.append(self.calc_distance(pos, self._controller.snake.position))
 
-        reward = score_diff * self._score_weight
+        reward += score_diff * self._score_weight
 
         if len(self._controller.last_position) == 10 and max(self_distance) < 3:
             reward += self._loop_weight
