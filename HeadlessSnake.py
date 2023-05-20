@@ -28,7 +28,8 @@ class HeadlessSnake:
         self._matrix[:, self._window_y - 1] = 1
         self._matrix[0, :] = 1
         self._matrix[self._window_x - 1, :] = 1
-        self._arr = np.array([0, 0, 0, 0])
+        self._observation_array_length = 5
+        self._observation_array = np.zeros((self._observation_array_length,), dtype=int)
 
     def spawn_fruit(self):
         while self._fruit_position in self._snake.body or self._fruit_position == self._snake.position:
@@ -91,38 +92,52 @@ class HeadlessSnake:
                 self._snake.direction = 'DOWN'
 
     def update_matrix(self):
-        # 0 = empty, 1 = wall, 2 = player, 3 = body, 4 = food
+        # 0 = empty, 1 = obstacle/body, 2 = player, 3 = food
         self._matrix = np.zeros((self._game_size[1], self._game_size[0]))
         self._matrix[:, 0] = 1
         self._matrix[:, self._game_size[0] - 1] = 1
         self._matrix[0, :] = 1
         self._matrix[self._game_size[1] - 1, :] = 1
         for part in self._snake.body:
-            self._matrix[part[1], part[0]] = 3
-        self._matrix[self.fruit_position[1], self.fruit_position[0]] = 4
+            self._matrix[part[1], part[0]] = 1
+        self._matrix[self.fruit_position[1], self.fruit_position[0]] = 3
         self._matrix[self._snake.position[1], self._snake.position[0]] = 2
         return self._matrix
 
     def get_array(self):
         self._matrix = self.update_matrix()
         if self._snake.direction == 'UP':
-            self._arr[0] = self._matrix[self._snake.position[1] - 1, self._snake.position[0]]
-            self._arr[1] = self._matrix[self._snake.position[1], self._snake.position[0] - 1]
-            self._arr[2] = self._matrix[self._snake.position[1], self._snake.position[0] + 1]
+            self._observation_array[0] = self._matrix[self._snake.position[1] - 1, self._snake.position[0]]
+            self._observation_array[1] = self._matrix[self._snake.position[1], self._snake.position[0] - 1]
+            self._observation_array[2] = self._matrix[self._snake.position[1], self._snake.position[0] + 1]
         elif self._snake.direction == 'DOWN':
-            self._arr[0] = self._matrix[self._snake.position[1] + 1, self._snake.position[0]]
-            self._arr[1] = self._matrix[self._snake.position[1], self._snake.position[0] + 1]
-            self._arr[2] = self._matrix[self._snake.position[1], self._snake.position[0] - 1]
+            self._observation_array[0] = self._matrix[self._snake.position[1] + 1, self._snake.position[0]]
+            self._observation_array[1] = self._matrix[self._snake.position[1], self._snake.position[0] + 1]
+            self._observation_array[2] = self._matrix[self._snake.position[1], self._snake.position[0] - 1]
         elif self._snake.direction == 'LEFT':
-            self._arr[0] = self._matrix[self._snake.position[1], self._snake.position[0] - 1]
-            self._arr[1] = self._matrix[self._snake.position[1] + 1, self._snake.position[0]]
-            self._arr[2] = self._matrix[self._snake.position[1] - 1, self._snake.position[0]]
+            self._observation_array[0] = self._matrix[self._snake.position[1], self._snake.position[0] - 1]
+            self._observation_array[1] = self._matrix[self._snake.position[1] + 1, self._snake.position[0]]
+            self._observation_array[2] = self._matrix[self._snake.position[1] - 1, self._snake.position[0]]
         elif self._snake.direction == 'RIGHT':
-            self._arr[0] = self._matrix[self._snake.position[1], self._snake.position[0] + 1]
-            self._arr[1] = self._matrix[self._snake.position[1] - 1, self._snake.position[0]]
-            self._arr[2] = self._matrix[self._snake.position[1] + 1, self._snake.position[0]]
-        self._arr[3] = self.calc_distance(self._snake.position, self.fruit_position)
-        return self._arr
+            self._observation_array[0] = self._matrix[self._snake.position[1], self._snake.position[0] + 1]
+            self._observation_array[1] = self._matrix[self._snake.position[1] - 1, self._snake.position[0]]
+            self._observation_array[2] = self._matrix[self._snake.position[1] + 1, self._snake.position[0]]
+
+        if self._snake.position[0] > self._fruit_position[0]:  # we are above the fruit
+            self._observation_array[3] = 1
+        elif self._snake.position[0] < self._fruit_position[0]:  # we are below the fruit
+            self._observation_array[3] = -1
+        else:
+            self._observation_array[3] = 0  # we are on the same x-axis the fruit
+
+        if self._snake.position[1] > self._fruit_position[1]:  # we are right the fruit
+            self._observation_array[4] = 1
+        elif self._snake.position[1] < self._fruit_position[1]:  # we are left the fruit
+            self._observation_array[4] = -1
+        else:
+            self._observation_array[4] = 0  # we are on the same y-axis the fruit
+
+        return self._observation_array
 
     @property
     def score(self):
@@ -159,6 +174,18 @@ class HeadlessSnake:
     @fruit_position.deleter
     def fruit_position(self):
         del self._fruit_position
+
+    @property
+    def array_length(self):
+        return self._observation_array_length
+
+    @array_length.setter
+    def array_length(self, value):
+        self._observation_array_length = value
+
+    @array_length.deleter
+    def array_length(self):
+        del self._observation_array_length
 
     @property
     def window_x(self):
