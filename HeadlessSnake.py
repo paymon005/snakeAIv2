@@ -1,9 +1,9 @@
-import math
 import time
 import pygame
 import numpy as np
 import random
 from Snake import Snake
+import MyTools
 random.seed(time.time())
 
 
@@ -91,16 +91,16 @@ class HeadlessSnake:
                 self._snake.direction = 'DOWN'
 
     def update_matrix(self):
-        # 0 = empty, 1 = obstacle/body, 3 = player, 2 = food
+        # 0 = empty, -1 = obstacle/body, 2 = player, 1 = food
         self._matrix = np.zeros((self._game_size[1], self._game_size[0]))
-        self._matrix[:, 0] = 1
-        self._matrix[:, self._game_size[0] - 1] = 1
-        self._matrix[0, :] = 1
-        self._matrix[self._game_size[1] - 1, :] = 1
+        self._matrix[:, 0] = -1
+        self._matrix[:, self._game_size[0] - 1] = -1
+        self._matrix[0, :] = -1
+        self._matrix[self._game_size[1] - 1, :] = -1
         for part in self._snake.body:
-            self._matrix[part[1], part[0]] = 1
-        self._matrix[self.fruit_position[1], self.fruit_position[0]] = 2
-        self._matrix[self._snake.position[1], self._snake.position[0]] = 3
+            self._matrix[part[1], part[0]] = -1
+        self._matrix[self.fruit_position[1], self.fruit_position[0]] = 1
+        self._matrix[self._snake.position[1], self._snake.position[0]] = 2
         return self._matrix
 
     def get_array(self):
@@ -109,30 +109,37 @@ class HeadlessSnake:
         whats_left = 0
         whats_right = 0
         whats_in_front = 0
+        snake_y = self._snake.position[1]
+        snake_x = self._snake.position[0]
+        fruit_y = self._fruit_position[1]
+        fruit_x = self._fruit_position[0]
         if self._snake.direction == 'UP':
-            whats_left = self._matrix[self._snake.position[1] - 1, self._snake.position[0]] - 1
-            whats_right = self._matrix[self._snake.position[1], self._snake.position[0] - 1] - 1
-            whats_in_front = self._matrix[self._snake.position[1], self._snake.position[0] + 1] - 1
+            whats_left = self._matrix[snake_y, snake_x-1]
+            whats_right = self._matrix[snake_y, snake_x+1]
+            whats_in_front = self._matrix[snake_y-1, snake_x]
         elif self._snake.direction == 'DOWN':
-            whats_left = self._matrix[self._snake.position[1] + 1, self._snake.position[0]] - 1
-            whats_right = self._matrix[self._snake.position[1], self._snake.position[0] + 1] - 1
-            whats_in_front = self._matrix[self._snake.position[1], self._snake.position[0] - 1] - 1
+            whats_left = self._matrix[snake_y, snake_x+1]
+            whats_right = self._matrix[snake_y, snake_x-1]
+            whats_in_front = self._matrix[snake_y+1, snake_x]
         elif self._snake.direction == 'LEFT':
-            whats_left = self._matrix[self._snake.position[1], self._snake.position[0] - 1] - 1
-            whats_right = self._matrix[self._snake.position[1] + 1, self._snake.position[0]] - 1
-            whats_in_front = self._matrix[self._snake.position[1] - 1, self._snake.position[0]] - 1
+            whats_left = self._matrix[snake_y+1, snake_x]
+            whats_right = self._matrix[snake_y-1, snake_x]
+            whats_in_front = self._matrix[snake_y, snake_x-1]
         elif self._snake.direction == 'RIGHT':
-            whats_left = self._matrix[self._snake.position[1], self._snake.position[0] + 1] - 1
-            whats_right = self._matrix[self._snake.position[1] - 1, self._snake.position[0]] - 1
-            whats_in_front = self._matrix[self._snake.position[1] + 1, self._snake.position[0]] - 1
+            whats_left = self._matrix[snake_y-1, snake_x]
+            whats_right = self._matrix[snake_y+1, snake_x]
+            whats_in_front = self._matrix[snake_y, snake_x+1]
 
-        normal_angle = get_normalized_angle(self._snake.position[1], self._snake.position[0],
-                                            self._fruit_position[1], self._fruit_position[0])
+        normal_angle = MyTools.get_normalized_angle(snake_y, snake_x, fruit_y, fruit_x)
+        y_dist = (snake_y - fruit_y) / (self._game_size[1]-2)
+        x_dist = (snake_x - fruit_x) / (self._game_size[0]-2)
 
         self._observation_array = np.append(self._observation_array, whats_left)
         self._observation_array = np.append(self._observation_array, whats_right)
         self._observation_array = np.append(self._observation_array, whats_in_front)
         self._observation_array = np.append(self._observation_array, normal_angle)
+        self._observation_array = np.append(self._observation_array, x_dist)
+        self._observation_array = np.append(self._observation_array, y_dist)
         return self._observation_array
 
     @property
@@ -170,18 +177,6 @@ class HeadlessSnake:
     @fruit_position.deleter
     def fruit_position(self):
         del self._fruit_position
-
-    @property
-    def array_length(self):
-        return self._observation_array_length
-
-    @array_length.setter
-    def array_length(self, value):
-        self._observation_array_length = value
-
-    @array_length.deleter
-    def array_length(self):
-        del self._observation_array_length
 
     @property
     def window_x(self):
@@ -230,33 +225,3 @@ class HeadlessSnake:
     @last_position.deleter
     def last_position(self):
         del self._last_position
-
-    @staticmethod
-    def calc_distance(pt1, pt2):
-        x2 = (pt1[0] - pt2[0]) ** 2
-        y2 = (pt1[1] - pt2[1]) ** 2
-        return math.sqrt(x2 + y2)
-
-
-def get_normalized_angle(x1, y1, x2, y2):
-    angle = 0
-    if y1 < y2:
-        if x1 < x2:
-            angle = abs(math.degrees(math.atan((y2 - y1) / (x2 - x1))))
-        elif x1 > x2:
-            angle = abs(math.degrees(math.atan((y2 - y1) / (x2 - x1)))) + 90
-        else:
-            angle = 90
-    elif y1 > y2:
-        if x1 < x2:
-            angle = -abs(math.degrees(math.atan((y2 - y1) / (x2 - x1))))
-        elif x1 > x2:
-            angle = -abs(math.degrees(math.atan((y2 - y1) / (x2 - x1)))) - 90
-        else:
-            angle = -90
-    else:
-        if x1 <= x2:
-            angle = 0
-        elif x1 > x2:
-            angle = -180
-    return angle / 180
