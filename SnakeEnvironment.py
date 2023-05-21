@@ -3,17 +3,18 @@ import gym
 import pygame
 from gym import spaces
 from HeadlessSnake import HeadlessSnake
-from ctypes import windll, Structure, c_long, byref
+import MyTools
+
 
 class SnakeEnv(gym.Env):
     metadata = {'render.modes': ['human']}
 
     def __init__(self, game_size, observation_type):
         self._alive_weight = 0
-        self._score_weight = 100
+        self._score_weight = 1
         self._dead_weight = -1
-        self._loop_weight = -3
-        self._towards_weight = 1
+        self._loop_weight = 0
+        self._towards_weight = 0
         self._away_weight = 0
         self._last_score = 0
         self._window = None
@@ -66,9 +67,9 @@ class SnakeEnv(gym.Env):
             self._window = pygame.display.set_mode((self._controller.window_x, self._controller.window_y))
             self._x = pygame.display.Info().current_w
             self._y = pygame.display.Info().current_h
-            on_top(pygame.display.get_wm_info()['window'])
+            MyTools.on_top(pygame.display.get_wm_info()['window'])
         self.draw_game()
-        on_top(pygame.display.get_wm_info()['window'])
+        MyTools.on_top(pygame.display.get_wm_info()['window'])
         pygame.event.pump()
 
     def close(self):
@@ -313,23 +314,14 @@ class SnakeEnv(gym.Env):
     def away_weight(self):
         del self._away_weight
 
+    @property
+    def controller(self):
+        return self._controller
 
-class RECT(Structure):
-    _fields_ = [
-        ('left', c_long),
-        ('top', c_long),
-        ('right', c_long),
-        ('bottom', c_long),
-    ]
+    @controller.setter
+    def controller(self, value):
+        self._controller = value
 
-    def width(self): return self.right - self.left
-
-    def height(self): return self.bottom - self.top
-
-
-def on_top(window):
-    SetWindowPos = windll.user32.SetWindowPos
-    GetWindowRect = windll.user32.GetWindowRect
-    rc = RECT()
-    GetWindowRect(window, byref(rc))
-    SetWindowPos(window, -1, rc.left, rc.top, 0, 0, 0x0001)
+    @controller.deleter
+    def controller(self):
+        del self._controller
