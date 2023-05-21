@@ -5,12 +5,14 @@ from tflearn.layers.estimator import regression
 import tflearn
 import os
 import tensorflow as tf
+import pickle
+import MyTools
 
 
 class DnnDriver:
 
-    def __init__(self, model_name='DNN_Model', model_dir='Models', run_dir='Snake', learning_rate=1e-3,
-                 epochs=5, keep_probability=0.8, num_of_cores=8, gpu_mem=0.4, train_type=None,profile_run=False):
+    def __init__(self, model_name='DNN_Model', model_dir='Models', log_dir='log', run_dir='Snake', learning_rate=1e-3,
+                 epochs=5, keep_probability=0.8, num_of_cores=8, gpu_mem=0.4, train_type=None, profile_run=False):
         self._action_space_size = 3
         self._observation_space_length = None
         self._num_of_cores = num_of_cores
@@ -19,12 +21,12 @@ class DnnDriver:
         self._epochs = epochs
         self._learning_rate = learning_rate
         self._keep_probability = keep_probability
-        self._layers = [25]
+        self._layers = [16]
         self._activations = ['relu']
         self._model = None
         self._training_data = None
         self._save_checkpoints = True
-        self._log_dir = 'log'
+        self._log_dir = log_dir
         self._model_dir = model_dir
         self._run_dir = run_dir
         self._run_id = run_dir  # 'Snake_Model'
@@ -72,31 +74,20 @@ class DnnDriver:
             self._model = tflearn.DNN(network, tensorboard_dir=self._log_dir)
         return self._model
 
-    @staticmethod
-    def create_save_dir(model_dir, run_dir):
-        save_dir = os.path.join(os.getcwd(), model_dir, run_dir)
-        if not os.path.exists(save_dir):
-            os.makedirs(save_dir)
-
     def save_model(self):
         self._model.save(self._model_dir + '\\' + self._run_dir)
 
-    def load_model(self, run_loc=None):
-        if run_loc is None:
-            run_name = None
-            run_dir = None
-        else:
-            run_dir = run_loc[0]
-            run_name = run_loc[1]
-        if run_name is None or run_dir is None:
+    def load_model(self, run_name=None):
+        if run_name is None:
             [model_to_load, self._run_dir] = self.get_last_run()
             final_directory = os.path.join(os.getcwd(), model_to_load)
         else:
-            self._run_dir = run_dir
-            final_directory = os.path.join(os.getcwd(), self._model_dir, self._run_dir, run_name)
+            final_directory = MyTools.find_file_in_folder(self._model_dir, run_name)
+            self._run_dir = '\\'.join(final_directory.split('\\')[0:-1])
         self.neural_network_model()
         print('Loading: ' + final_directory)
         self._model.load(final_directory)
+        self.load_layers()
         return self._model
 
     def get_last_run(self):
@@ -124,11 +115,11 @@ class DnnDriver:
         #  print("tensorboard. --logdir " + self._log_dir)
         #  os.system("tensorboard --logdir " + self._log_dir)
 
-    def load_training_data(self, run_dir_to_load=None):
-        if run_dir_to_load is not None:
-            file_to_load = os.path.join(os.getcwd(), self._model_dir, run_dir_to_load, 'training_data.npy')
+    def load_training_data(self, filename=None):
+        if filename is not None:
+            file_to_load = MyTools.find_file_in_folder(self._model_dir, filename)
         else:
-            file_to_load = os.path.join(os.getcwd(), self._model_dir, self._run_dir, 'training_data.npy')
+            file_to_load = MyTools.get_newest_file_in_folder_w_ext(self._model_dir, 'npy')
         print('Loading: ' + file_to_load)
         np_load_old = np.load
         np.load = lambda *a, **k: np_load_old(*a, allow_pickle=True, **k)
@@ -141,6 +132,25 @@ class DnnDriver:
         best_checkpoint_dir = os.path.join(self._model_dir, self._run_dir, 'best-' + self._model_name)
         self._model.trainer.checkpoint_path = checkpoint_dir
         self._model.trainer.best_checkpoint_path = best_checkpoint_dir
+
+    def save_layers(self):
+        data = {}
+        file = open(os.path.join(self._model_dir, self._run_dir, 'Model_Network.pkl'), 'wb')
+        data['Layers'] = self._layers
+        data['Activations'] = self._activations
+        pickle.dump(data, file)
+        file.close()
+
+    def load_layers(self):
+        path = os.path.join(self._model_dir, self._run_dir, 'Model_Network.pkl')
+        if os.path.isfile(path):
+            file = open(path, 'rb')
+            data = pickle.load(file)
+            self._layers = data['Layers']
+            self._activations = data['Activations']
+            file.close()
+        else:
+            print('No Model Network to load!')
 
     @staticmethod
     def check_version():
@@ -353,3 +363,15 @@ class DnnDriver:
     @train_type.deleter
     def train_type(self):
         del self._train_type
+
+    @property
+    def activations(self):
+        return self._activations
+
+    @activations.setter
+    def activations(self, value):
+        self._activations = value
+
+    @activations.deleter
+    def activations(self):
+        del self._activations
