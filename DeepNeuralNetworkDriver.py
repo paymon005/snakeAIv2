@@ -25,7 +25,8 @@ class DnnDriver:
         self.learning_rate = learning_rate
         self.keep_probability = keep_probability
         self.layers = [5]
-        self.activations = ['relu']
+        self.activations = ['linear']
+        self.dropouts = [False]
         self.model = None
         self.training_data = None
         self.save_checkpoints = True
@@ -62,7 +63,8 @@ class DnnDriver:
         network = input_data(shape=[None, self.observation_space_length, 1], name='input')
         for i in range(0, len(self.layers)):
             network = fully_connected(network, self.layers[i], activation=self.activations[i])
-            network = dropout(network, self.keep_probability)
+            if self.dropouts[i]:
+                network = dropout(network, self.keep_probability)
         network = fully_connected(network, self.output_size, activation='softmax')
         network = regression(network, optimizer='adam', learning_rate=self.learning_rate,
                              loss='mean_square', name='targets')
