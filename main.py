@@ -12,189 +12,117 @@ import multiprocessing
 from parallelbar import progress_map
 from functools import partial
 import MyTools
+from Parameters import Parameters
 np.warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
 # from example import SnakeNN
-# from Player import some_random_games_first, generate_population, create_dummy_model, train_model_ex, evaluate
-
-now = datetime.now()  # current date and time
-random.seed(time.time())
-profile_run = False
-cores_for_games = 12
-cores_for_training = 12
-gpu_memory_fraction = 0.5
-# game_size = [72, 48]
-game_size = [36, 24]
-snake_speed = 45
-observation_space_type = 2  # 1 for entire matrix, 2 for array of perception
-score_check_runs = 200
-accepted_percentile = 98
-force_score_requirement = False
-forced_score_requirement = 4
-initial_games = 10000
-epochs = 10
-keep_rate = 0.85
-LR = 0.001
-goal_steps = 400
-model_dir = 'Models'
-log_dir = 'log'
-model_name = 'Snake_Model_' + now.strftime("%Y_%m_%d___%H_%M_%S")
-kick_out_sore = -500
-games_to_play = 10
-recursive_iterations = 10
-recursive_score_check_runs = 200
-recursive_initial_games = 10000
-recursive_epochs = 20
-mutation_rate = 0.05
 
 
 def main():
-    clean_dir(model_dir)
-    clean_dir(log_dir)
+    param = Parameters()
+    param.parse_inputs()
+
+    clean_dir(param.model_dir)
+    clean_dir(param.log_dir)
     # SnakeNN().train()
-    # True
-    # False
-    reward_system = 0  # 0: old, 1: new
-    load_model = True
-    load_specific_model = False
-    load_training_data = False
-    load_specific_training_data = False
-    generate_training_data = True
-    train_model = True
-    recursive_training = False
-    plot_graphs = False
-    run_dir = now.strftime("%Y_%m_%d___%H_%M_%S")
-    run_to_load = 'Snake_Model-18330'
-    training_data_to_load = 'training_data1.npy'
-
-    [load_model, generate_training_data, load_training_data, train_model, run_to_load, training_data_to_load,
-     recursive_training, run_dir, plot_graphs] = parse_inputs(load_model, load_specific_model, generate_training_data,
-                                                              load_training_data, load_specific_training_data,
-                                                              train_model, run_to_load, training_data_to_load,
-                                                              recursive_training, run_dir, plot_graphs)
-
     start_time = time.time()
-    run_tflearn_trainer(run_dir, load_model, generate_training_data, load_training_data, train_model, run_to_load,
-                        training_data_to_load, plot_graphs, recursive_training, reward_system)
+    run_tflearn_trainer(param)
     duration = time.time() - start_time
     print('Total Elapsed Time: ' + str(int(duration / 60)) + ' minutes')
 
 
-def parse_inputs(load_model, load_specific_model, generate_training_data, load_training_data,
-                 load_specific_training_data, train_model, run_to_load, training_data_to_load, recursive_training,
-                 run_dir, plot_graphs):
-    if not load_specific_training_data:
-        training_data_to_load = None
-    if not load_specific_model:
-        run_to_load = None
-    if recursive_training:
-        run_dir = run_dir + '\\Iteration_1'
-        plot_graphs = False
-    if not generate_training_data and not load_training_data and train_model:
-        raise Exception('This shit wont run. No training data for model')
-    if not generate_training_data and not load_training_data and train_model:
-        raise Exception('This shit wont run. No training data for model')
-    return load_model, generate_training_data, load_training_data, train_model, run_to_load, training_data_to_load, recursive_training, run_dir, plot_graphs
-
-
-def spawn_trainer(run_dir, reward_system):
-    training_driver = DnnDriver(model_name, model_dir, log_dir, run_dir, LR, epochs, keep_rate, cores_for_training,
-                                gpu_memory_fraction, profile_run)
+def spawn_trainer(param):
+    training_driver = DnnDriver(param.model_name, param.model_dir, param.log_dir, param.run_dir, param.LR, param.epochs,
+                                param.keep_rate, param.cores_for_training, param.gpu_memory_fraction, param.profile_run)
     training_driver.check_version()
-    env = SnakeEnv(game_size, observation_space_type)
-    training_driver.train_type = reward_system
-    if reward_system == 1:
+    env = SnakeEnv(param.game_size, param.observation_space_type)
+    if param.reward_system == 1:
         env.observation_space_length = env.observation_space_length + 1  # add 1 for reward
         training_driver.output_size = 1
     training_driver.observation_space_length = env.observation_space_length
     return training_driver
 
 
-def run_tflearn_trainer(run_dir, load_model, generate_training_data, load_training_data, train_model, run_to_load,
-                        training_data_to_load, plot_graphs, recursive_training, reward_system):
-    training_driver = spawn_trainer(run_dir, reward_system)
-    if load_model:
-        training_driver.load_model(run_to_load)
+def run_tflearn_trainer(param):
+    training_driver = spawn_trainer(param)
+    if param.load_model:
+        training_driver.load_model(param.run_to_load)
     else:
         training_driver.neural_network_model()
-    if load_training_data:
-        training_driver.load_training_data(training_data_to_load)
-    if generate_training_data or train_model:
-        training_driver.change_run_dir(run_dir)
-        MyTools.create_save_dir(model_dir, run_dir)
-    if generate_training_data:
-        training_driver = make_training_data(run_dir, training_driver, load_model, reward_system)
-    if train_model:
+    if param.load_training_data:
+        training_driver.load_training_data(param.training_data_to_load)
+    if param.generate_training_data or param.train_model:
+        training_driver.change_run_dir(param.run_dir)
+        MyTools.create_save_dir(param.model_dir, param.run_dir)
+    if param.generate_training_data:
+        training_driver = make_training_data(training_driver, param)
+    if param.train_model:
         training_driver.train_model()
-    if not train_model and not load_model:
-        run_x_games(True)
+    if not param.train_model and not param.load_model:
+        run_x_games(True, param)
     else:
-        [final_scores, choices] = run_x_games(True, training_driver.model)
+        [final_scores, choices] = run_x_games(True, param, training_driver.model)
         save_outputs(training_driver, final_scores, choices)
-    if plot_graphs:
+    if param.plot_graphs:
         training_driver.plot_graphs()
-
-    if recursive_training:
-        load_model = True
+    if param.recursive_training:
+        param.load_model = True
         iteration = 1
-        training_driver.epochs = recursive_epochs
-        while iteration < recursive_iterations:
+        training_driver.epochs = param.recursive_epochs
+        while iteration < param.recursive_iterations:
             iteration += 1
-            tmp = run_dir.split('\\')
-            tmp = '\\'.join(tmp[:-1])
-            run_dir = tmp + '\\Iteration_' + str(iteration)
-            training_driver.change_run_dir(run_dir)
-            training_driver.create_save_dir(model_dir, run_dir)
-            training_driver = make_training_data(run_dir, training_driver, load_model, reward_system, True)
+            param.run_dir = '\\'.join(param.run_dir.split('\\')[:-1]) + '\\Iteration_' + str(iteration)
+            training_driver.change_run_dir(param.run_dir)
+            training_driver.create_save_dir(param.model_dir, param.run_dir)
+            training_driver = make_training_data(training_driver, param, True)
             training_driver.train_model()
-            [final_scores, choices] = run_x_games(True, training_driver.model)
+            [final_scores, choices] = run_x_games(True, param, training_driver.model)
             save_outputs(training_driver, final_scores, choices)
 
 
-def make_training_data(run_dir, training_driver, load_model, reward_system, in_recursion=False):
+def make_training_data(training_driver, param, in_recursion=False):
     if in_recursion:
-        games = [recursive_score_check_runs, recursive_initial_games]
+        games = [param.recursive_score_check_runs, param.recursive_initial_games]
     else:
-        games = [score_check_runs, initial_games]
-
-    if force_score_requirement:
-        score_requirement = forced_score_requirement
-        test_run_scores = [forced_score_requirement, forced_score_requirement]
+        games = [param.score_check_runs, param.initial_games]
+    if param.force_score_requirement:
+        param.score_requirement = param.forced_score_requirement
+        test_run_scores = [param.forced_score_requirement, param.forced_score_requirement]
     else:
-        test_run_scores, score_requirement = get_score_requirement(training_driver, games[0], load_model)
-    print('Setting ' + str(score_requirement) + ' as the score requirement')
+        test_run_scores, param.score_requirement = get_score_requirement(training_driver, games[0], param)
+    print('Setting ' + str(param.score_requirement) + ' as the score requirement')
     time.sleep(5)
-    MyTools.create_save_dir(model_dir, run_dir)
+    MyTools.create_save_dir(param.model_dir, param.run_dir)
     training_driver.training_data, accepted_scores = \
-        initial_population(training_driver, games[1], load_model, reward_system, score_requirement)
+        initial_population(training_driver, games[1], param, param.score_requirement)
     time.sleep(5)
     if len(training_driver.training_data) == 0:
         return
-    save_inputs(run_dir, accepted_scores, test_run_scores, score_requirement, training_driver)
+    save_inputs(param, accepted_scores, test_run_scores, training_driver)
     training_driver.save_layers()
     return training_driver
 
 
-def get_score_requirement(training_driver, num_of_runs, load_model):
-    _, accepted_scores = initial_population(training_driver, num_of_runs, load_model)
-    idx = int(accepted_percentile / 100 * len(accepted_scores))
+def get_score_requirement(training_driver, num_of_runs, param):
+    _, accepted_scores = initial_population(training_driver, num_of_runs, param)
+    idx = int(param.accepted_percentile / 100 * len(accepted_scores))
     req = sorted(accepted_scores)[idx - 1]
     return accepted_scores, req
 
 
-def initial_population(training_driver, num_of_runs, load_model, reward_system=0, score_requirement=-9e9):
+def initial_population(training_driver, num_of_runs, param, score_requirement=-9e9):
     length = training_driver.observation_space_length
-    if load_model:
+    if param.load_model:
         model = training_driver.model
     else:
         model = None
-    if cores_for_games > 1 and not load_model:  # solve in parallel (cant pickle model objects so cant run in parallel)
+    if param.cores_for_games > 1 and not param.load_model:  # solve in parallel (cant pickle model objects so cant run in parallel)
         manager = multiprocessing.Manager()
         accepted_scores_dict = manager.dict()
         scores_dict = manager.dict()
         training_data_dict = manager.dict()
         func = partial(run_a_game, length, score_requirement, scores_dict, accepted_scores_dict, training_data_dict,
-                       reward_system, model, False, None)
-        progress_map(func, range(num_of_runs), process_timeout=3, n_cpu=cores_for_games)
+                       model, False, None)
+        progress_map(func, range(num_of_runs), process_timeout=3, n_cpu=param.cores_for_games)
         [scores, accepted_scores, training_data] = sort_dict_into_list(scores_dict, accepted_scores_dict,
                                                                        training_data_dict)
     else:  # solve with a single core
@@ -203,10 +131,10 @@ def initial_population(training_driver, num_of_runs, load_model, reward_system=0
         training_data = []
         for _ in tqdm(range(num_of_runs)):  # iterate through however many games we want:
             [training_data, scores, accepted_scores, _] = \
-                run_a_game(length, score_requirement, scores, accepted_scores, training_data, reward_system, model,
-                           False, None)
+                run_a_game(param, length, param.score_requirement, scores, accepted_scores, training_data,
+                           model, False, None)
     if score_requirement > -9999999:
-        save_training_data(training_data, training_driver)
+        save_training_data(param, training_data, training_driver)
     if len(accepted_scores) > 0:
         print_score_stats(accepted_scores, 1)
     else:
@@ -215,9 +143,9 @@ def initial_population(training_driver, num_of_runs, load_model, reward_system=0
     return training_data, accepted_scores
 
 
-def run_a_game(length=None, score_requirement=9e-9, scores=None, accepted_scores=None, training_data=None,
-               reward_system=0, model=None, render=False, choices=None, run_id=None):
-    env = SnakeEnv(game_size, observation_space_type)
+def run_a_game(param, length=None, score_requirement=9e-9, scores=None, accepted_scores=None, training_data=None,
+               model=None, render=False, choices=None, run_id=None):
+    env = SnakeEnv(param.game_size, param.observation_space_type)
     if choices is None:
         choices = []
     if scores is None:
@@ -225,12 +153,12 @@ def run_a_game(length=None, score_requirement=9e-9, scores=None, accepted_scores
     if model is not None:
         length = model.inputs[0].shape.dims[1].value
         if length > env.observation_space_length:
-            reward_system = 1
+            param.reward_system = 1
     game_memory = []
     score = 0
     reward = 0
     step = 0
-    step_to_stop = goal_steps
+    step_to_stop = param.goal_steps
     prev_observation = env.state
     mutate = False
     if render:
@@ -238,28 +166,28 @@ def run_a_game(length=None, score_requirement=9e-9, scores=None, accepted_scores
     while step < step_to_stop:  # for each frame in goal steps
         if render:
             env.render()
-            time.sleep(1 / snake_speed)
+            time.sleep(1 / param.snake_speed)
             print(score)
         else:
-            mutate = random.randint(1, 101) < mutation_rate * 100
-        action = get_action(model, mutate, reward_system, prev_observation, reward, length, env)
+            mutate = random.randint(1, 101) < param.mutation_rate * 100
+        action = get_action(model, mutate, param.reward_system, prev_observation, reward, length, env)
         choices.append(action)
         [observation, reward, done] = env.step(action)
-        if reward_system == 0:
+        if param.reward_system == 0:
             game_memory.append([prev_observation, action])
-        elif reward_system == 1:
+        elif param.reward_system == 1:
             game_memory.append([np.insert(prev_observation, 0, action, axis=0), reward])
         prev_observation = observation
         score += reward
-        if done or score < kick_out_sore:
+        if done or score < param.kick_out_sore:
             break
         step += 1
     if run_id is None:
         [scores, accepted_scores, training_data] = append_data(
-            scores, accepted_scores, training_data, score, score_requirement, game_memory, reward_system)
+            scores, accepted_scores, training_data, score, score_requirement, game_memory, param.reward_system)
     else:
         [scores, accepted_scores, training_data] = add_to_dict(
-            scores, accepted_scores, training_data, score, score_requirement, game_memory, reward_system, run_id)
+            scores, accepted_scores, training_data, score, score_requirement, game_memory, param.reward_system, run_id)
     env.close()
     return training_data, scores, accepted_scores, choices
 
@@ -302,11 +230,11 @@ def add_to_dict(scores, accepted_scores, training_data, score, score_requirement
     return scores, accepted_scores, training_data
 
 
-def run_x_games(render, model=None):
+def run_x_games(render, param, model=None):
     scores = []
     choices = []
-    for _ in range(games_to_play):
-        [_, score, _, choice] = run_a_game(model=model, render=render)
+    for _ in range(param.games_to_play):
+        [_, score, _, choice] = run_a_game(param, model=model, render=render)
         scores.extend(score)
         choices.extend(choice)
     print_score_stats(scores, 2)
@@ -318,7 +246,7 @@ def parse_game_memory(game_memory):
     new_mem = []
     output = []
     for data in game_memory:
-        # convert to one-hot (this is the output layer for our neural network)
+        # convert to one-hot (this is the output layer for the neural network)
         if data[1] == 0:
             output = [1, 0, 0]
         elif data[1] == 1:
@@ -326,13 +254,13 @@ def parse_game_memory(game_memory):
         elif data[1] == 2:
             output = [0, 0, 1]
         new_mem.append([data[0], output])
-    return new_mem  # saving our training data
+    return new_mem
 
 
-def save_training_data(training_data, training_driver):
-    filename = training_driver.run_dir.replace('\\', '_') + 'training_data.npy'
+def save_training_data(param, training_data, training_driver):
+    filename = training_driver.run_dir.replace('\\', '_') + '_training_data.npy'
     training_data_save = np.array(training_data)  # just in case you wanted to reference later
-    save_dir = os.path.join(os.getcwd(), model_dir, training_driver.run_dir, filename)
+    save_dir = os.path.join(os.getcwd(), param.model_dir, training_driver.run_dir, filename)
     np.save(save_dir, training_data_save)
 
 
@@ -352,9 +280,9 @@ def sort_dict_into_list(scores_dict, accepted_scores_dict, training_data_dict):
     accepted_scores = []
     scores = []
     training_data = []
-    for key in scores_dict:
-        scores.append(scores_dict[key])
     print('Sorting dictionaries into arrays')
+    for key, v in tqdm(scores_dict.items()):
+        scores.append(scores_dict[key])
     for key, v in tqdm(accepted_scores_dict.items()):
         accepted_scores.append(accepted_scores_dict[key])
         training_data.extend(training_data_dict[key])
@@ -369,22 +297,22 @@ def count_and_print_choices(choices):
         round(choices.count(2) / len(choices) * 100, 2)))
 
 
-def save_inputs(run_dir, accepted_scores, test_run_scores, score_requirement, training_driver):
-    env = SnakeEnv(game_size, observation_space_type)
-    filename = model_dir + '\\' + run_dir + '\\' + 'Summary' + '.txt'
+def save_inputs(param, accepted_scores, test_run_scores, training_driver):
+    env = SnakeEnv(param.game_size, param.observation_space_type)
+    filename = param.model_dir + '\\' + param.run_dir + '\\' + 'Summary' + '.txt'
     file = open(filename, "w")
     file.write('Model Inputs\n\n')
-    file.write('Percentile                : ' + str(accepted_percentile) + '\n')
-    file.write('Epochs                    : ' + str(epochs) + '\n')
-    file.write('Keep Rate                 : ' + str(keep_rate) + '\n')
-    file.write('Learning Rate             : ' + str(LR) + '\n')
-    file.write('Goal Steps                : ' + str(goal_steps) + '\n\n')
+    file.write('Percentile                : ' + str(param.accepted_percentile) + '\n')
+    file.write('Epochs                    : ' + str(param.epochs) + '\n')
+    file.write('Keep Rate                 : ' + str(param.keep_rate) + '\n')
+    file.write('Learning Rate             : ' + str(param.LR) + '\n')
+    file.write('Goal Steps                : ' + str(param.goal_steps) + '\n\n')
     file.write('Number of test scores     : ' + str(len(test_run_scores)) + '\n')
     file.write('Max of test scores        : ' + str(max(test_run_scores)) + '\n')
     file.write('Average of test scores    : ' + str(round(mean(test_run_scores), 0)) + '\n')
     file.write('Min of tests score        : ' + str(min(test_run_scores)) + '\n\n')
-    file.write('Score Requirement         : ' + str(score_requirement) + '\n\n')
-    file.write('Initial_games             : ' + str(initial_games) + '\n')
+    file.write('Score Requirement         : ' + str(param.score_requirement) + '\n\n')
+    file.write('Initial_games             : ' + str(param.initial_games) + '\n')
     file.write('Number of accepted scores : ' + str(len(accepted_scores)) + '\n')
     file.write('Max accepted score        : ' + str(max(accepted_scores)) + '\n')
     file.write('Average accepted score    : ' + str(round(mean(accepted_scores), 0)) + '\n')
@@ -395,9 +323,9 @@ def save_inputs(run_dir, accepted_scores, test_run_scores, score_requirement, tr
     file.write('Loop Weight               : ' + str(env.loop_weight) + '\n')
     file.write('Towards Weight            : ' + str(env.towards_weight) + '\n')
     file.write('Away Weight               : ' + str(env.away_weight) + '\n')
-    file.write('Game Size                 : [' + str(game_size[0]) + ',' + str(game_size[1]) + ']\n\n')
+    file.write('Game Size                 : [' + str(param.game_size[0]) + ',' + str(param.game_size[1]) + ']\n\n')
     file.write('Network Data\n')
-    file.write('Observation Space Type    : ' + str(observation_space_type) + '\n')
+    file.write('Observation Space Type    : ' + str(param.observation_space_type) + '\n')
     file.write('Observation Space Length  : ' + str(env.observation_space_length) + '\n')
     for i in range(0, len(training_driver.layers)):
         file.write('Layer ' + str(i) + ' Nodes             : ' + str(training_driver.layers[i]) + '\n')
@@ -424,6 +352,8 @@ def save_outputs(training_driver, final_scores, choices):
 def clean_dir(dir_to_search):
     folders = os.listdir(dir_to_search)
     for folder in folders:
+        if os.path.isfile(dir_to_search + '\\' + folder):
+            continue
         files = []
         for (dir_path, dir_names, file_names) in os.walk(dir_to_search + '\\' + folder):
             for file in file_names:
