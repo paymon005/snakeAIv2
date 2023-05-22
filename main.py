@@ -185,6 +185,7 @@ def run_a_game(param, length=None, scores=None, accepted_scores=None, training_d
         if length == env.observation_space_length + 1:
             param.include_reward_in_obs = True
     game_memory = []
+    this_games_choices = []
     score = 0
     step = 0
     reward = 0
@@ -203,14 +204,15 @@ def run_a_game(param, length=None, scores=None, accepted_scores=None, training_d
         if param.include_reward_in_obs:
             prev_observation = np.append(prev_observation, reward)
         action = get_action(model, mutate, prev_observation, length, env)
-        choices.append(action)
-        [observation, reward, done] = env.step(action)
+        this_games_choices.append(action)
+        [observation, reward, done] = env.step(action, this_games_choices)
         game_memory.append([prev_observation, action])
         prev_observation = observation
         score += reward
         if done or score < param.kick_out_sore:
             break
         step += 1
+    choices.extend(this_games_choices)
     if run_id is None:
         [scores, accepted_scores, training_data] = append_data(
             param, scores, accepted_scores, training_data, score, game_memory)
@@ -357,6 +359,7 @@ def save_inputs(param, accepted_scores, test_run_scores, training_driver):
     for i in range(0, len(training_driver.layers)):
         file.write('Layer ' + str(i) + ' Nodes             : ' + str(training_driver.layers[i]) + '\n')
         file.write('Layer ' + str(i) + ' Activations       : ' + str(training_driver.activations[i]) + '\n')
+        file.write('Layer ' + str(i) + ' Dropout           : ' + str(training_driver.dropouts[i]) + '\n')
     file.write('\n\nModel Outputs\n\n')
     file.close()
     env.close()
