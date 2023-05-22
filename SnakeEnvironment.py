@@ -12,7 +12,7 @@ class SnakeEnv(gym.Env):
         self.alive_weight = 0
         self.score_weight = 1
         self.dead_weight = -1
-        self.loop_weight = 0
+        self.loop_weight = -1
         self.towards_weight = 0
         self.away_weight = 0
         self.last_score = 0
@@ -96,7 +96,7 @@ class SnakeEnv(gym.Env):
 
         reward += score_diff * self.score_weight
 
-        if len(self.controller.last_position) == 10 and max(self_distance) < 3:
+        if len(self.controller.last_position) == 10 and max(self_distance) < 2:
             reward += self.loop_weight
 
         if fruit_distance_diff > 0:
