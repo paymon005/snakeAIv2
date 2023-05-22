@@ -139,6 +139,6 @@ class HeadlessSnake:
         self.observation_array = np.append(self.observation_array, whats_right)
         self.observation_array = np.append(self.observation_array, whats_in_front)
         self.observation_array = np.append(self.observation_array, normal_angle)
-        self.observation_array = np.append(self.observation_array, x_dist)
-        self.observation_array = np.append(self.observation_array, y_dist)
+        # self.observation_array = np.append(self.observation_array, x_dist)
+        # self.observation_array = np.append(self.observation_array, y_dist)
         return self.observation_array
