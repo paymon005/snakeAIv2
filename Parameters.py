@@ -7,7 +7,7 @@ class Parameters:
         # True
         # False
         self.run_to_load = 'Snake_Model-18330'
-        self.training_data_to_load = 'Req2_1000games_100goalSteps.npy'
+        self.training_data_to_load = 'Req2_1000games_100goalSteps_6ob.npy'
         self.load_model = False
         self.load_specific_model = False
         self.load_training_data = False
@@ -15,17 +15,17 @@ class Parameters:
         self.generate_training_data = True
         self.train_model = True
         self.recursive_training = False
-        self.plot_graphs = True
+        self.plot_graphs = False
         self.profile_run = False
         self.use_target_training_data_length = True
-        self.force_score_requirement = True
-        self.include_reward_in_obs = True
-        self.forced_score_requirement = 2
+        self.force_score_requirement = False
+        self.include_reward_in_obs = False
+        self.forced_score_requirement = 3
         self.target_training_data_length = 1000
-        self.score_check_runs = 200
+        self.score_check_runs = 1000
         self.accepted_percentile = 98
         self.initial_games = 1000
-        self.goal_steps = 200
+        self.goal_steps = 300
         self.cores_for_games = 16
         self.cores_for_training = 12
         self.gpu_memory_fraction = 0.5
@@ -39,7 +39,7 @@ class Parameters:
         self.recursive_target_training_data_length = 100
         self.recursive_epochs = 10
         self.target_score_increase = 1
-        self.mutation_rate = 0.25
+        self.mutation_rate = 0.10
         self.score_requirement = 0
         # self.game_size = [72, 48]
         self.game_size = [36, 24]
