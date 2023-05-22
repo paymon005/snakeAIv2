@@ -13,9 +13,10 @@ class SnakeEnv(gym.Env):
         self.score_weight = 1
         self.dead_weight = -1
         self.loop_weight = -1
-        self.towards_weight = 0
+        self.towards_weight = 1
         self.away_weight = 0
         self.last_score = 0
+        self.choices_to_check = 10
         self.window = None
         self.fps = None
         self.x = 0
@@ -35,7 +36,7 @@ class SnakeEnv(gym.Env):
         #                                    high=np.ones(self.game_size),
         #                                    dtype=np.int)   # 0 = up, 1 = down, 2 = left, 3 = right
 
-    def step(self, action):
+    def step(self, action, choices=None):
         done = False
         assert self.action_space.contains(action), "Invalid Action"
         self.controller.change_direction(self.get_action_meaning(action))
@@ -48,7 +49,7 @@ class SnakeEnv(gym.Env):
                 self.state = self.controller.update_matrix()
             elif self.observation_type == 2:
                 self.state = self.controller.get_array()
-        rewards = self.calculate_reward()
+        rewards = self.calculate_reward(choices)
         return self.state, rewards, done
 
     def reset(self, *, seed=None, return_info=False, options=None):
@@ -84,7 +85,7 @@ class SnakeEnv(gym.Env):
         elif action == 2:
             return "TURN_RIGHT"
 
-    def calculate_reward(self):
+    def calculate_reward(self, choices):
         reward = 0
         score_diff = self.controller.score - self.last_score
         fruit_distance_old = MyTools.calc_distance(self.controller.fruit_position, self.controller.last_position[0])
@@ -96,8 +97,21 @@ class SnakeEnv(gym.Env):
 
         reward += score_diff * self.score_weight
 
-        if len(self.controller.last_position) == 10 and max(self_distance) < 2:
+        looping = False
+        if choices is not None:
+            choices = list(filter(MyTools.is_not_zero, choices))
+            if len(choices) > self.choices_to_check:
+                looping = True
+                choice1 = choices[-self.choices_to_check]
+                for choice in choices[-self.choices_to_check + 1:]:
+                    if choice != choice1:
+                        looping = False
+
+        if looping:
             reward += self.loop_weight
+
+        # if (len(self.controller.last_position) == 10 and max(self_distance) < 2) or looping:
+        #     reward += self.loop_weight
 
         if fruit_distance_diff > 0:
             reward += self.towards_weight
