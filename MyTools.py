@@ -83,3 +83,9 @@ def get_newest_file_in_folder_w_ext(folder, ext):
         if file.endswith('.' + ext):
             return file
     return None
+
+
+def is_not_zero(value):
+    if value == 0:
+        return False
+    return True
