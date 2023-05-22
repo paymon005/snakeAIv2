@@ -7,6 +7,9 @@ import os
 import tensorflow as tf
 import pickle
 import MyTools
+import tensorflow.python.util.deprecation as deprecation
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+deprecation._PRINT_DEPRECATION_WARNINGS = False
 
 
 class DnnDriver:
@@ -21,7 +24,7 @@ class DnnDriver:
         self.epochs = epochs
         self.learning_rate = learning_rate
         self.keep_probability = keep_probability
-        self.layers = [512]
+        self.layers = [5]
         self.activations = ['relu']
         self.model = None
         self.training_data = None
@@ -34,8 +37,7 @@ class DnnDriver:
         self.snapshot_frequency = 5
         self.output_size = self.action_space_size
         tf.debugging.set_log_device_placement(True)
-        gpus = tf.config.list_physical_devices('GPU')
-        tf.config.set_visible_devices(gpus[0], 'GPU')
+        self.check_version()
 
     def train_model(self):
         input_length = len(self.training_data[0][0])
@@ -61,7 +63,7 @@ class DnnDriver:
         for i in range(0, len(self.layers)):
             network = fully_connected(network, self.layers[i], activation=self.activations[i])
             network = dropout(network, self.keep_probability)
-        network = fully_connected(network, self.output_size, activation='linear')
+        network = fully_connected(network, self.output_size, activation='softmax')
         network = regression(network, optimizer='adam', learning_rate=self.learning_rate,
                              loss='mean_square', name='targets')
         if self.save_checkpoints and self.model_dir is not None:
@@ -82,7 +84,7 @@ class DnnDriver:
             final_directory = os.path.join(os.getcwd(), model_to_load)
         else:
             final_directory = MyTools.find_file_in_folder(self.model_dir, run_name)
-            self.run_dir = '\\'.join(final_directory.split('\\')[0:-1])
+            self.run_dir = '\\'.join(final_directory.split('\\')[1:-1])
         self.neural_network_model()
         print('Loading: ' + final_directory)
         self.model.load(final_directory)
@@ -108,6 +110,7 @@ class DnnDriver:
         return model_to_load, run_dir
 
     def plot_graphs(self):
+        os.system("taskkill /IM ""tensorboard.main"" /F")
         os.system("taskkill /IM ""tensorboard.exe"" /F")
         print(os.getcwd() + "\\venv\\Scripts\\python.exe -m tensorboard.main --logdir=" + self.log_dir)
         os.system(os.getcwd() + "\\venv\\Scripts\\python.exe -m tensorboard.main --logdir=" + self.log_dir)
@@ -156,5 +159,8 @@ class DnnDriver:
         print('TensorFlow version: ', tf.__version__)
         device_name = tf.test.gpu_device_name()
         if not device_name:
-            raise SystemError('GPU device not found')
-        print('Found GPU at: {}'.format(device_name))
+            print('GPU device not found')
+        else:
+            print('Found GPU at: {}'.format(device_name))
+            # gpus = tf.config.list_physical_devices('GPU')
+            # tf.config.set_visible_devices(gpus[0], 'GPU')
