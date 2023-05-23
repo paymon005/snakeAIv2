@@ -75,13 +75,11 @@ class SnakeEnv(gym.Env):
             self.window = pygame.display.set_mode((self.controller.window_x, self.controller.window_y))
             self.x = pygame.display.Info().current_w
             self.y = pygame.display.Info().current_h
-            # MyTools.on_top(pygame.display.get_wm_info()['window'])
         hwnd = pygame.display.get_wm_info()['window']
         rect = self.GetWindowRect(hwnd)
         self.user32.SetWindowPos(hwnd, -1, rect.left, rect.top, 0, 0, 0x0001)
         pygame.display.set_caption('Snake [Score: ' + str(score) + ']')
         self.draw_game()
-        # MyTools.on_top(pygame.display.get_wm_info()['window'])
         pygame.event.pump()
 
     def close(self):
