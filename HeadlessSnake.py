@@ -4,7 +4,6 @@ import numpy as np
 import random
 from Snake import Snake
 import MyTools
-
 random.seed(time.time())
 
 
@@ -32,9 +31,8 @@ class HeadlessSnake:
         self.observation_array = None
 
     def spawn_fruit(self):
-        while self.fruit_position in self.snake.body or self.fruit_position == self.snake.position:
-            self.fruit_position = [random.randrange(1, (self.game_size[0] // 10)) * 10 - 1,
-                                   random.randrange(1, (self.game_size[1] // 10)) * 10 - 1]
+        while self.fruit_position in self.snake.body:
+            self.fruit_position = [random.randint(1, self.game_size[0]-2), random.randint(1, self.game_size[1]-2)]
 
     def check_yumyum_and_move_body(self):
         snake_body = self.snake.body
