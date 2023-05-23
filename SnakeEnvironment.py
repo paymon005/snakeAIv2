@@ -3,32 +3,41 @@ import pygame
 from gym import spaces
 from HeadlessSnake import HeadlessSnake
 import MyTools
+import ctypes
+from ctypes import wintypes, POINTER, WINFUNCTYPE, windll
+from ctypes.wintypes import BOOL, HWND, RECT
 
 
 class SnakeEnv(gym.Env):
-    metadata = {'render.modes': ['human']}
 
-    def __init__(self, game_size, observation_type):
+    def __init__(self, game_size, first_layer_type):
         self.alive_weight = 0
         self.score_weight = 1
         self.dead_weight = -1
-        self.loop_weight = -1
-        self.towards_weight = 1
+        self.loop_weight = 0
+        self.towards_weight = 0
         self.away_weight = 0
         self.last_score = 0
-        self.choices_to_check = 10
+        self.choices_to_check_for_looping = 10
         self.window = None
         self.fps = None
         self.x = 0
         self.y = 0
         self.game_size = game_size
-        self.observation_type = observation_type
+        self.first_layer_type = first_layer_type
         self.reward_range = (0, 200)
         self.action_space_size = 3
         self.controller = HeadlessSnake(game_size)
-        if self.observation_type == 1:
+        self.prototype = WINFUNCTYPE(BOOL, HWND, POINTER(RECT))
+        self.paramflags = (1, "hwnd"), (2, "lprect")
+        self.GetWindowRect = self.prototype(("GetWindowRect", windll.user32), self.paramflags)
+        self.user32 = ctypes.WinDLL("user32")
+        self.user32.SetWindowPos.restype = wintypes.HWND
+        self.user32.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, wintypes.INT, wintypes.INT, wintypes.INT,
+                                             wintypes.INT, wintypes.UINT]
+        if self.first_layer_type == 'conv_2d':
             self.state = self.controller.update_matrix()
-        elif self.observation_type == 2:
+        else:
             self.state = self.controller.get_array()
         self.observation_space_length = self.state.size
         self.action_space = spaces.Discrete(self.action_space_size)
@@ -45,9 +54,9 @@ class SnakeEnv(gym.Env):
         if self.controller.check_game_over():
             done = True
         else:
-            if self.observation_type == 1:
+            if self.first_layer_type == 'conv_2d':
                 self.state = self.controller.update_matrix()
-            elif self.observation_type == 2:
+            else:
                 self.state = self.controller.get_array()
         rewards = self.calculate_reward(choices)
         return self.state, rewards, done
@@ -55,21 +64,24 @@ class SnakeEnv(gym.Env):
     def reset(self, *, seed=None, return_info=False, options=None):
         del self.controller
         self.controller = HeadlessSnake(self.game_size)
-        if self.observation_type == 1:
+        if self.first_layer_type == 'conv_2d':
             self.state = self.controller.update_matrix().flatten()
-        elif self.observation_type == 2:
+        else:
             self.state = self.controller.get_array()
 
-    def render(self, mode='human', close=False):
+    def render(self, score=''):
         if self.window is None:
             pygame.init()
-            pygame.display.set_caption('Snake: ' + str(self.controller.score))
             self.window = pygame.display.set_mode((self.controller.window_x, self.controller.window_y))
             self.x = pygame.display.Info().current_w
             self.y = pygame.display.Info().current_h
-            MyTools.on_top(pygame.display.get_wm_info()['window'])
+            # MyTools.on_top(pygame.display.get_wm_info()['window'])
+        hwnd = pygame.display.get_wm_info()['window']
+        rect = self.GetWindowRect(hwnd)
+        self.user32.SetWindowPos(hwnd, -1, rect.left, rect.top, 0, 0, 0x0001)
+        pygame.display.set_caption('Snake [Score: ' + str(score) + ']')
         self.draw_game()
-        MyTools.on_top(pygame.display.get_wm_info()['window'])
+        # MyTools.on_top(pygame.display.get_wm_info()['window'])
         pygame.event.pump()
 
     def close(self):
@@ -91,27 +103,27 @@ class SnakeEnv(gym.Env):
         fruit_distance_old = MyTools.calc_distance(self.controller.fruit_position, self.controller.last_position[0])
         fruit_distance_new = MyTools.calc_distance(self.controller.fruit_position, self.controller.snake.position)
         fruit_distance_diff = fruit_distance_old - fruit_distance_new
-        self_distance = []
-        for pos in self.controller.last_position:
-            self_distance.append(MyTools.calc_distance(pos, self.controller.snake.position))
 
         reward += score_diff * self.score_weight
 
-        looping = False
         if choices is not None:
+            looping = False
             choices = list(filter(MyTools.is_not_zero, choices))
-            if len(choices) > self.choices_to_check:
+            if len(choices) > self.choices_to_check_for_looping:
                 looping = True
-                choice1 = choices[-self.choices_to_check]
-                for choice in choices[-self.choices_to_check + 1:]:
+                choice1 = choices[-self.choices_to_check_for_looping]
+                for choice in choices[-self.choices_to_check_for_looping + 1:]:
                     if choice != choice1:
                         looping = False
-
-        if looping:
-            reward += self.loop_weight
-
-        # if (len(self.controller.last_position) == 10 and max(self_distance) < 2) or looping:
-        #     reward += self.loop_weight
+                        break
+            if looping:
+                reward += self.loop_weight
+        else:
+            self_distance = []
+            for pos in self.controller.last_position:
+                self_distance.append(MyTools.calc_distance(pos, self.controller.snake.position))
+            if len(self.controller.last_position) == 10 and max(self_distance) < 2:
+                reward += self.loop_weight
 
         if fruit_distance_diff > 0:
             reward += self.towards_weight
