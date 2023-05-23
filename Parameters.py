@@ -24,11 +24,10 @@ class Parameters:
         self.initial_games = 10
         self.accepted_percentile = 95
         self.goal_steps = 1000
+        self.epochs = 50
         self.cores_for_games = 16
         self.cores_for_training = 16
         self.gpu_memory_fraction = 0.5
-        self.epochs = 100
-        self.keep_rate = 0.9
         self.LR = 0.002
         self.kick_out_sore = -500
         self.recursive_iterations = 10
@@ -54,6 +53,7 @@ class Parameters:
         self.profile_run = False
         self.play_full_game = False
         self.first_layer_type = None
+        self.print_direction_during_game = True
 
     def parse_inputs(self):
         if not self.load_specific_training_data:
