@@ -1,5 +1,4 @@
 import os
-from ctypes import windll, Structure, c_long, byref
 import math
 
 
@@ -23,23 +22,6 @@ def create_save_dir(top_folder, bot_folder):
     save_dir = os.path.join(os.getcwd(), top_folder, bot_folder)
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
-
-
-class RECT(Structure):
-    _fields_ = [
-        ('left', c_long),
-        ('top', c_long),
-        ('right', c_long),
-        ('bottom', c_long),
-    ]
-
-
-def on_top(window):
-    SetWindowPos = windll.user32.SetWindowPos
-    GetWindowRect = windll.user32.GetWindowRect
-    rc = RECT()
-    GetWindowRect(window, byref(rc))
-    SetWindowPos(window, -1, rc.left, rc.top, 0, 0, 0x0001)
 
 
 def calc_distance(pt1, pt2):
