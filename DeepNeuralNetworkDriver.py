@@ -17,7 +17,7 @@ deprecation._PRINT_DEPRECATION_WARNINGS = False
 class DnnDriver:
 
     def __init__(self, model_name='DNN_Model', model_dir='Models', log_dir='log', run_dir='Snake', learning_rate=1e-3,
-                 epochs=5, keep_probability=0.8, num_of_cores=8, gpu_mem=0.4, profile_run=False):
+                 epochs=5, num_of_cores=8, gpu_mem=0.4, profile_run=False):
         self.action_space_size = 3
         self.game_size = None
         self.stop_accuracy = 0.95
@@ -27,14 +27,14 @@ class DnnDriver:
         self.model_name = model_name
         self.epochs = epochs
         self.learning_rate = learning_rate
-        self.keep_probability = keep_probability
         self.layer_types =          ['conv_2d', 'conv_2d', 'fully_connected']  # conv_2d, fully_connected, conv_1d
         self.layer_nodes =          [None, None, 256]  # number of nodes in each core layer
-        self.layer_num_of_filters = [32, 64, None]  # only for conv layers
-        self.layer_filter_sizes =   [8, 4, None]  # only for conv layers
-        self.layer_strides =        [4, 2, None]  # only for conv layers
-        self.dropouts =             [False, False, False]  # whether to add a dropout on this layer
-        self.activations =          ['relu', 'relu', 'relu']  # each layers activation function
+        self.layer_num_of_filters = [16, 32, None]  # only for conv layers
+        self.layer_filter_sizes =   [[3, 3], [2, 2], None]  # only for conv layers
+        self.layer_strides =        [[4, 4], [2, 2], None]  # only for conv layers
+        self.dropouts =             [False, False, True]  # whether to add a dropout on this layer
+        self.keep_probability =     [None,  None,   0.9]  # dropout keep rate
+        self.activations =          ['linear', 'linear', 'linear']  # each layers activation function
         self.output_layer_activation = 'softmax'
         self.regression_optimizer = 'adam'
         self.loss_function = 'mean_square'
@@ -43,7 +43,8 @@ class DnnDriver:
         #  optimizers
         # sgd, rmsprop, adam, momentum, adagrad, ftrl, adadelta, proxi_adagrad, nesterov
         # loss functions
-        #  softmax_categorical_crossentropy, categorical_crossentropy, binary_crossentropy, weighted_crossentropy, mean_square, hinge_loss, roc_auc_score, weak_cross_entropy_2d
+        #  softmax_categorical_crossentropy, categorical_crossentropy, binary_crossentropy, weighted_crossentropy,
+        #  mean_square, hinge_loss, roc_auc_score, weak_cross_entropy_2d
         self.model = None
         self.training_data = None
         self.save_checkpoints = True
@@ -62,10 +63,10 @@ class DnnDriver:
         self.save_layers()
         # input_length = len(self.training_data[0][0])
         if self.layer_types[0] == 'conv_2d':
-            X = np.array([i[0] for i in self.training_data]).reshape(-1, self.game_size[1], self.game_size[0], 1)
+            X = np.array([i[0] for i in self.training_data]).reshape((-1, self.game_size[1], self.game_size[0], 1))
         else:
             input_length = self.training_data[0][0].size
-            X = np.array([i[0] for i in self.training_data]).reshape(-1, input_length, 1)
+            X = np.array([i[0] for i in self.training_data]).reshape((-1, input_length, 1))
         y = np.array([i[1] for i in self.training_data]).reshape(-1, self.output_size)
         if self.profile_run:
             options = tf.profiler.experimental.ProfilerOptions(host_tracer_level=3,
@@ -112,7 +113,7 @@ class DnnDriver:
                                        activation=self.activations[i],
                                        weights_init=tnorm)
             if self.dropouts[i]:
-                self.network = dropout(self.network, self.keep_probability)
+                self.network = dropout(self.network, self.keep_probability[i])
 
         self.network = fully_connected(self.network, self.output_size, activation=self.output_layer_activation)
         self.network = regression(self.network, optimizer=self.regression_optimizer, learning_rate=self.learning_rate,
@@ -200,13 +201,14 @@ class DnnDriver:
         data['layer_filter_sizes'] = self.layer_filter_sizes
         data['layer_strides'] = self.layer_strides
         data['observation_space_length'] = self.observation_space_length
+        data['keep_probability'] = self.keep_probability
         pickle.dump(data, file)
         file.close()
 
     def load_layers(self):
         path = os.path.join(self.model_dir, self.run_dir, 'Model_Network.pkl')
         if os.path.isfile(path):
-            try:
+            # try:
                 file = open(path, 'rb')
                 data = pickle.load(file)
                 self.layer_nodes = data['layer_nodes']
@@ -220,10 +222,12 @@ class DnnDriver:
                 self.layer_filter_sizes = data['layer_filter_sizes']
                 self.layer_strides = data['layer_strides']
                 self.observation_space_length = data['observation_space_length']
+                self.keep_probability = data['keep_probability']
                 file.close()
                 print('Loading: ' + path)
-            except:
-                print('Could not load model, trying defined model...')
+            # except:
+            #     print('Could not load model, trying defined model...')
+            #     time.sleep(1)
         else:
             print('No Model Network to load!')
             time.sleep(1)
