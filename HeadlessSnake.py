@@ -130,8 +130,8 @@ class HeadlessSnake:
             whats_in_front = self.matrix[snake_y, snake_x + 1]
 
         normal_angle = MyTools.get_normalized_angle(snake_y, snake_x, fruit_y, fruit_x)
-        y_dist = (snake_y - fruit_y) / (self.game_size[1] - 2)
-        x_dist = (snake_x - fruit_x) / (self.game_size[0] - 2)
+        # y_dist = (snake_y - fruit_y) / (self.game_size[1] - 2)
+        # x_dist = (snake_x - fruit_x) / (self.game_size[0] - 2)
 
         self.observation_array = np.append(self.observation_array, whats_left)
         self.observation_array = np.append(self.observation_array, whats_right)
