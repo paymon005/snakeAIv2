@@ -74,7 +74,7 @@ def run_tflearn_trainer(param):
 
 def spawn_trainer(param):
     training_driver = DnnDriver(param.model_name, param.model_dir, param.log_dir, param.run_dir, param.LR, param.epochs,
-                                param.keep_rate, param.cores_for_training, param.gpu_memory_fraction, param.profile_run)
+                                param.cores_for_training, param.gpu_memory_fraction, param.profile_run)
     env = SnakeEnv(param.game_size, param.first_layer_type)
     if param.include_reward_in_obs:
         training_driver.observation_space_length = env.observation_space_length + 1
@@ -228,6 +228,8 @@ def run_a_game(param, length=None, scores=None, accepted_scores=None, training_d
         if param.include_reward_in_obs:
             prev_observation = np.append(prev_observation, reward)
         action = get_action(model, mutate, prev_observation, length, env, param)
+        if param.print_direction_during_game:
+            print(env.get_action_meaning(action))
         this_games_choices.append(action)
         [observation, reward, done] = env.step(action, this_games_choices)
         game_memory.append([prev_observation, action])
@@ -257,9 +259,9 @@ def run_target_games(param, scores, accepted_scores, training_data, length=None,
 def get_action(model, mutate, prev_observation, length, env, param):
     if model is not None and not mutate:
         if param.first_layer_type == 'conv_2d':
-            action = np.argmax(model.predict(prev_observation.reshape(-1, param.game_size[1], param.game_size[0], 1))[0])
+            action = np.argmax(model.predict(prev_observation.reshape((-1, param.game_size[1], param.game_size[0], 1)))[0])
         else:
-            action = np.argmax(model.predict(prev_observation.reshape(-1, length, 1))[0])
+            action = np.argmax(model.predict(prev_observation.reshape((-1, length, 1)))[0])
     else:
         action = random.randint(0, env.action_space_size - 1)
     return action
@@ -336,7 +338,6 @@ def save_inputs(param, training_driver, accepted_scores=None, test_run_scores=No
     file.write('Model Inputs\n\n')
     file.write('Percentile                : ' + str(param.accepted_percentile) + '\n')
     file.write('Epochs                    : ' + str(param.epochs) + '\n')
-    file.write('Keep Rate                 : ' + str(param.keep_rate) + '\n')
     file.write('Learning Rate             : ' + str(param.LR) + '\n')
     file.write('Goal Steps                : ' + str(param.goal_steps) + '\n\n')
     if test_run_scores is not None:
@@ -370,6 +371,7 @@ def save_inputs(param, training_driver, accepted_scores=None, test_run_scores=No
         file.write('Layer ' + str(i+1) + ' Strides           : ' + str(training_driver.layer_strides[i]) + '\n')
         file.write('Layer ' + str(i+1) + ' Activation        : ' + str(training_driver.activations[i]) + '\n')
         file.write('Layer ' + str(i+1) + ' Dropout           : ' + str(training_driver.dropouts[i]) + '\n')
+        file.write('Layer ' + str(i+1) + ' Dropout Keep Prob : ' + str(training_driver.keep_probability[i]) + '\n')
     file.write('Output Layer Nodes        : ' + str(training_driver.action_space_size) + '\n')
     file.write('Output Layer Activation   : ' + str(training_driver.output_layer_activation) + '\n')
     file.write('Regression Optimizer      : ' + str(training_driver.regression_optimizer) + '\n')
