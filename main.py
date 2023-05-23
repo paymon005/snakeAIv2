@@ -28,31 +28,24 @@ def main():
     print('Total Elapsed Time: ' + str(int(duration / 60)) + ' minutes')
 
 
-def spawn_trainer(param):
-    training_driver = DnnDriver(param.model_name, param.model_dir, param.log_dir, param.run_dir, param.LR, param.epochs,
-                                param.keep_rate, param.cores_for_training, param.gpu_memory_fraction, param.profile_run)
-    env = SnakeEnv(param.game_size, param.observation_space_type)
-    if param.include_reward_in_obs:
-        training_driver.observation_space_length = env.observation_space_length + 1
-    else:
-        training_driver.observation_space_length = env.observation_space_length
-    return training_driver
-
-
 def run_tflearn_trainer(param):
     training_driver = spawn_trainer(param)
+    accepted_scores = None
+    test_run_scores = None
     if param.load_model:
         training_driver.load_model(param.run_to_load)
     else:
         training_driver.neural_network_model()
+    param.first_layer_type = training_driver.layer_types[0]
     if param.load_training_data:
         training_driver.load_training_data(param.training_data_to_load)
     if param.generate_training_data or param.train_model:
         training_driver.change_run_dir(param.run_dir)
         MyTools.create_save_dir(param.model_dir, param.run_dir)
     if param.generate_training_data:
-        training_driver = make_training_data(training_driver, param)
+        [training_driver, accepted_scores, test_run_scores] = make_training_data(training_driver, param)
     if param.train_model:
+        save_inputs(param, training_driver, accepted_scores, test_run_scores)
         training_driver.train_model()
     if param.run_random_game:
         run_x_games(True, param)
@@ -70,12 +63,25 @@ def run_tflearn_trainer(param):
             param.run_dir = '\\'.join(param.run_dir.split('\\')[:-1]) + '\\Iteration_' + str(iteration)
             training_driver.change_run_dir(param.run_dir)
             MyTools.create_save_dir(param.model_dir, param.run_dir)
-            training_driver = make_training_data(training_driver, param, True)
+            [training_driver, accepted_scores, test_run_scores] = make_training_data(training_driver, param, True)
+            save_inputs(param, training_driver, accepted_scores, test_run_scores)
             training_driver.train_model()
             [final_scores, choices] = run_x_games(True, param, training_driver.model)
             save_outputs(training_driver, final_scores, choices)
     if param.plot_graphs:
         training_driver.plot_graphs()
+
+
+def spawn_trainer(param):
+    training_driver = DnnDriver(param.model_name, param.model_dir, param.log_dir, param.run_dir, param.LR, param.epochs,
+                                param.keep_rate, param.cores_for_training, param.gpu_memory_fraction, param.profile_run)
+    env = SnakeEnv(param.game_size, param.first_layer_type)
+    if param.include_reward_in_obs:
+        training_driver.observation_space_length = env.observation_space_length + 1
+    else:
+        training_driver.observation_space_length = env.observation_space_length
+    training_driver.game_size = param.game_size
+    return training_driver
 
 
 def make_training_data(training_driver, param, in_recursion=False):
@@ -86,77 +92,92 @@ def make_training_data(training_driver, param, in_recursion=False):
     if param.force_score_requirement:
         test_run_scores = [param.forced_score_requirement, param.forced_score_requirement]
     else:
-        test_run_scores, param.score_requirement = get_score_requirement(training_driver, games[0], param)
+        test_run_scores, param.score_requirement = get_score_requirement(training_driver, games[0], param, in_recursion)
     print('Setting ' + str(param.score_requirement) + ' as the score requirement')
     time.sleep(5)
     MyTools.create_save_dir(param.model_dir, param.run_dir)
-    training_driver.training_data, accepted_scores = initial_population(training_driver, games[1], param)
+    training_driver.training_data, accepted_scores = initial_population(training_driver, games[1], param, False, True,
+                                                                        in_recursion)
     time.sleep(5)
     if len(training_driver.training_data) == 0:
         return
-    save_inputs(param, accepted_scores, test_run_scores, training_driver)
-    training_driver.save_layers()
-    return training_driver
+    return training_driver, accepted_scores, test_run_scores
 
 
-def get_score_requirement(training_driver, num_of_runs, param):
-    _, accepted_scores = initial_population(training_driver, num_of_runs, param,  False)
+def get_score_requirement(training_driver, num_of_runs, param, in_recursion):
+    _, accepted_scores = initial_population(training_driver, num_of_runs, param, True, False, in_recursion)
     idx = int(param.accepted_percentile / 100 * len(accepted_scores))
     req = sorted(accepted_scores)[idx - 1]
     return accepted_scores, req
 
 
-def initial_population(training_driver, num_of_runs, param, save_data=True):
+def initial_population(training_driver, num_of_runs, param, score_checking, save_data, in_recursion):
     length = training_driver.observation_space_length
-    if param.load_model:
+    if (param.load_model and param.use_model_when_making_training_data) or in_recursion:
         model = training_driver.model
     else:
         model = None
     if param.cores_for_games > 1 and not param.load_model:  # solve in parallel (cant pickle model objects so cant run in parallel)
-        [scores, accepted_scores, training_data] = submit_parallel_core_jobs(param, length, num_of_runs, model)
+        [scores, accepted_scores, training_data] = submit_parallel_core_jobs(param, length, num_of_runs, model,
+                                                                             score_checking)
     else:  # solve with a single core
-        [scores, accepted_scores, training_data] = submit_single_core_jobs(param, length, num_of_runs, model)
+        [scores, accepted_scores, training_data] = submit_single_core_jobs(param, length, num_of_runs, model,
+                                                                           score_checking)
+    print('Total Games           : ' + str(len(scores)))
+    print('Total Accepted Scores : ' + str(len(accepted_scores)))
+    print('Training Data Length  : ' + str(len(training_data)))
     if save_data:
         save_training_data(param, training_data, training_driver)
     if len(accepted_scores) > 0:
-        print_score_stats(accepted_scores, 1)
+        if score_checking:
+            print_score_stats(accepted_scores, 2)
+        else:
+            print_score_stats(accepted_scores, 1)
     else:
         raise Exception('\n\n\n**************Out of ' + str(num_of_runs) + ' runs, no one got a score higher than ' +
                         str(param.sscore_requirement) + '.\n' + '**************Average score:', mean(scores) + '\n\n\n')
     return training_data, accepted_scores
 
 
-def submit_parallel_core_jobs(param, length, num_of_runs, model):
+def submit_parallel_core_jobs(param, length, num_of_runs, model, score_checking):
     manager = multiprocessing.Manager()
-    accepted_scores_dict = manager.dict()
-    scores_dict = manager.dict()
-    training_data_dict = manager.dict()
-    if param.use_target_training_data_length:
-        cnt = manager.dict()
-        cnt['1'] = 0
-        print('Getting ' + str(param.target_training_data_length) + ' games with a score over ' + str(param.score_requirement))
+    scores = manager.list()
+    accepted_scores = manager.list()
+    training_data = manager.list()
+    run_to_target = param.use_target_training_data_length
+    if score_checking:
+        run_to_target = False
+    if run_to_target:
+        print('Getting ' + str(param.target_training_data_length) + ' games with a score over ' + str(
+            param.score_requirement))
         time.sleep(0.5)
-        func = partial(run_target_games, param, length, scores_dict, accepted_scores_dict, training_data_dict, model,
-                       False, None, cnt)
+        func = partial(run_target_games, param, scores, accepted_scores, training_data, length, model, False, None)
         with multiprocessing.Pool(param.cores_for_games) as p:
             p.map(func, range(param.cores_for_games))
     else:
-        print('Getting ' + str(param.initial_games) + ' games and trimming to a score of ' + str(param.score_requirement))
+        if score_checking:
+            print('Getting ' + str(param.score_check_runs) + ' games to get a score requirement')
+        else:
+            print('Getting ' + str(param.initial_games) + ' games and trimming to a score of ' + str(
+                param.score_requirement))
         time.sleep(0.5)
-        func = partial(run_a_game, param, length, scores_dict, accepted_scores_dict, training_data_dict, model,
-                       False, None, None)
+        func = partial(run_a_game, param, length, scores, accepted_scores, training_data, model, False, None)
         progress_map(func, range(num_of_runs), process_timeout=3, n_cpu=param.cores_for_games)
-    [scores, accepted_scores, training_data] = sort_dict_into_list(scores_dict, accepted_scores_dict,
-                                                                   training_data_dict)
+
+    # [scores, accepted_scores, training_data] = sort_dict_into_list(parallel_data_dict)
     return scores, accepted_scores, training_data
 
 
-def submit_single_core_jobs(param, length, num_of_runs, model):
+def submit_single_core_jobs(param, length, num_of_runs, model, score_checking):
     accepted_scores = []
     scores = []
     training_data = []
-    if param.use_target_training_data_length:
-        print('Getting ' + str(param.target_training_data_length) + ' games with a score over ' + str(param.score_requirement))
+    run_to_target = param.use_target_training_data_length
+    if score_checking:
+        run_to_target = False
+    if run_to_target:
+        print('Getting ' + str(param.target_training_data_length) + ' games with a score over ' + str(
+            param.score_requirement))
         time.sleep(0.5)
         cnt = 1
         while len(accepted_scores) < param.target_training_data_length:
@@ -165,7 +186,11 @@ def submit_single_core_jobs(param, length, num_of_runs, model):
             print(str(len(accepted_scores)) + '/' + str(param.target_training_data_length) + ' [' + str(cnt) + ']')
             cnt += 1
     else:
-        print('Getting ' + str(param.initial_games) + ' games and trimming to a score of ' + str(param.score_requirement))
+        if score_checking:
+            print('Getting ' + str(param.score_check_runs) + ' games to get a score requirement')
+        else:
+            print('Getting ' + str(param.initial_games) + ' games and trimming to a score of ' + str(
+                param.score_requirement))
         time.sleep(0.5)
         for _ in tqdm(range(num_of_runs)):  # iterate through however many games we want:
             [training_data, scores, accepted_scores, _] = \
@@ -173,9 +198,9 @@ def submit_single_core_jobs(param, length, num_of_runs, model):
     return scores, accepted_scores, training_data
 
 
-def run_a_game(param, length=None, scores=None, accepted_scores=None, training_data=None,
-               model=None, render=False, choices=None, run_id=None):
-    env = SnakeEnv(param.game_size, param.observation_space_type)
+def run_a_game(param, length=None, scores=None, accepted_scores=None, training_data=None, model=None, render=False,
+               choices=None, run_id=None):
+    env = SnakeEnv(param.game_size, param.first_layer_type)
     if choices is None:
         choices = []
     if scores is None:
@@ -192,18 +217,17 @@ def run_a_game(param, length=None, scores=None, accepted_scores=None, training_d
     prev_observation = env.state
     mutate = False
     step_to_stop = param.goal_steps
-    if render:
+    if param.play_full_game:
         step_to_stop = 9e99
     while step < step_to_stop:  # for each frame in goal steps
         if render:
-            env.render()
+            env.render(score)
             time.sleep(1 / param.snake_speed)
-            print(score)
         else:
             mutate = random.randint(1, 101) <= param.mutation_rate * 100
         if param.include_reward_in_obs:
             prev_observation = np.append(prev_observation, reward)
-        action = get_action(model, mutate, prev_observation, length, env)
+        action = get_action(model, mutate, prev_observation, length, env, param)
         this_games_choices.append(action)
         [observation, reward, done] = env.step(action, this_games_choices)
         game_memory.append([prev_observation, action])
@@ -213,28 +237,29 @@ def run_a_game(param, length=None, scores=None, accepted_scores=None, training_d
             break
         step += 1
     choices.extend(this_games_choices)
-    if run_id is None:
-        [scores, accepted_scores, training_data] = append_data(
-            param, scores, accepted_scores, training_data, score, game_memory)
-    else:
-        [scores, accepted_scores, training_data] = add_to_dict(
-            param, scores, accepted_scores, training_data, score, game_memory, run_id)
+    [scores, accepted_scores, training_data] = append_data(param, scores, accepted_scores, training_data, score,
+                                                           game_memory)
     env.close()
+    if render:
+        print('Final Score: ' + str(score))
+        count_and_print_choices(this_games_choices)
     return training_data, scores, accepted_scores, choices
 
 
-def run_target_games(param, length=None, scores=None, accepted_scores=None, training_data=None,
-                     model=None, render=False, choices=None, cnt=None, run_id=None):
-    while len(training_data) < param.target_training_data_length:
-        cnt['1'] = cnt['1'] + 1
-        [training_data, scores, accepted_scores, choices] = run_a_game(param, length, scores, accepted_scores,
-                                                                       training_data, model, render, choices, cnt['1'])
-        print(str(len(accepted_scores)) + '/' + str(param.target_training_data_length) + ' [' + str(cnt['1']) + ']')
+def run_target_games(param, scores, accepted_scores, training_data, length=None, model=None, render=False, choices=None,
+                     run_id=None):
+    while len(accepted_scores) < param.target_training_data_length:
+        [training_data, scores, accepted_scores, _] = run_a_game(param, length, scores, accepted_scores, training_data,
+                                                                 model, render, choices, run_id)
+        print(str(len(accepted_scores)) + '/' + str(param.target_training_data_length) + ' [' + str(len(scores)) + ']')
 
 
-def get_action(model, mutate, prev_observation, length, env):
+def get_action(model, mutate, prev_observation, length, env, param):
     if model is not None and not mutate:
-        action = np.argmax(model.predict(prev_observation.reshape(-1, length, 1))[0])
+        if param.first_layer_type == 'conv_2d':
+            action = np.argmax(model.predict(prev_observation.reshape(-1, param.game_size[1], param.game_size[0], 1))[0])
+        else:
+            action = np.argmax(model.predict(prev_observation.reshape(-1, length, 1))[0])
     else:
         action = random.randint(0, env.action_space_size - 1)
     return action
@@ -246,15 +271,6 @@ def append_data(param, scores, accepted_scores, training_data, score, game_memor
         if score >= param.score_requirement:
             accepted_scores.append(score)
             training_data.extend(parse_game_memory(game_memory))
-    return scores, accepted_scores, training_data
-
-
-def add_to_dict(param, scores, accepted_scores, training_data, score, game_memory, run_id):
-    scores[run_id] = score  # save overall scores
-    if accepted_scores is not None:
-        if score >= param.score_requirement:
-            accepted_scores[run_id] = score
-            training_data[run_id] = parse_game_memory(game_memory)
     return scores, accepted_scores, training_data
 
 
@@ -305,19 +321,6 @@ def print_score_stats(accepted_scores, score_type):
     print('Min ' + score_string + ': ' + str(min(accepted_scores)))
 
 
-def sort_dict_into_list(scores_dict, accepted_scores_dict, training_data_dict):
-    accepted_scores = []
-    scores = []
-    training_data = []
-    print('Sorting dictionaries into arrays')
-    for key, v in tqdm(scores_dict.items()):
-        scores.append(scores_dict[key])
-    for key, v in tqdm(accepted_scores_dict.items()):
-        accepted_scores.append(accepted_scores_dict[key])
-        training_data.extend(training_data_dict[key])
-    return scores, accepted_scores, training_data
-
-
 def count_and_print_choices(choices):
     # 0 = Straight, 1: Turn Left, 2: Turn Right
     print('Straight:{}%  Turn Left:{}%  Turn Right:{}%'.format(
@@ -326,8 +329,8 @@ def count_and_print_choices(choices):
         round(choices.count(2) / len(choices) * 100, 2)))
 
 
-def save_inputs(param, accepted_scores, test_run_scores, training_driver):
-    env = SnakeEnv(param.game_size, param.observation_space_type)
+def save_inputs(param, training_driver, accepted_scores=None, test_run_scores=None):
+    env = SnakeEnv(param.game_size, param.first_layer_type)
     filename = param.model_dir + '\\' + param.run_dir + '\\' + 'Summary' + '.txt'
     file = open(filename, "w")
     file.write('Model Inputs\n\n')
@@ -336,30 +339,41 @@ def save_inputs(param, accepted_scores, test_run_scores, training_driver):
     file.write('Keep Rate                 : ' + str(param.keep_rate) + '\n')
     file.write('Learning Rate             : ' + str(param.LR) + '\n')
     file.write('Goal Steps                : ' + str(param.goal_steps) + '\n\n')
-    file.write('Number of test scores     : ' + str(len(test_run_scores)) + '\n')
-    file.write('Max of test scores        : ' + str(max(test_run_scores)) + '\n')
-    file.write('Average of test scores    : ' + str(round(mean(test_run_scores), 0)) + '\n')
-    file.write('Min of tests score        : ' + str(min(test_run_scores)) + '\n\n')
-    file.write('Score Requirement         : ' + str(param.score_requirement) + '\n\n')
-    file.write('Initial_games             : ' + str(param.initial_games) + '\n')
-    file.write('Number of accepted scores : ' + str(len(accepted_scores)) + '\n')
-    file.write('Max accepted score        : ' + str(max(accepted_scores)) + '\n')
-    file.write('Average accepted score    : ' + str(round(mean(accepted_scores), 0)) + '\n')
-    file.write('Min accepted score        : ' + str(min(accepted_scores)) + '\n\n')
-    file.write('Alive Weight              : ' + str(env.alive_weight) + '\n')
-    file.write('Score Weight              : ' + str(env.score_weight) + '\n')
-    file.write('Dead Weight               : ' + str(env.dead_weight) + '\n')
-    file.write('Loop Weight               : ' + str(env.loop_weight) + '\n')
-    file.write('Towards Weight            : ' + str(env.towards_weight) + '\n')
-    file.write('Away Weight               : ' + str(env.away_weight) + '\n')
+    if test_run_scores is not None:
+        file.write('Number of test scores     : ' + str(len(test_run_scores)) + '\n')
+        file.write('Max of test scores        : ' + str(max(test_run_scores)) + '\n')
+        file.write('Average of test scores    : ' + str(round(mean(test_run_scores), 0)) + '\n')
+        file.write('Min of tests score        : ' + str(min(test_run_scores)) + '\n\n')
+        file.write('Score Requirement         : ' + str(param.score_requirement) + '\n\n')
+        file.write('Initial_games             : ' + str(param.initial_games) + '\n')
+    if accepted_scores is not None:
+        file.write('Number of accepted scores : ' + str(len(accepted_scores)) + '\n')
+        file.write('Max accepted score        : ' + str(max(accepted_scores)) + '\n')
+        file.write('Average accepted score    : ' + str(round(mean(accepted_scores), 0)) + '\n')
+        file.write('Min accepted score        : ' + str(min(accepted_scores)) + '\n\n')
+        file.write('Alive Weight              : ' + str(env.alive_weight) + '\n')
+        file.write('Score Weight              : ' + str(env.score_weight) + '\n')
+        file.write('Dead Weight               : ' + str(env.dead_weight) + '\n')
+        file.write('Loop Weight               : ' + str(env.loop_weight) + '\n')
+        file.write('Towards Weight            : ' + str(env.towards_weight) + '\n')
+        file.write('Away Weight               : ' + str(env.away_weight) + '\n')
     file.write('Game Size                 : [' + str(param.game_size[0]) + ',' + str(param.game_size[1]) + ']\n\n')
     file.write('Network Data\n')
-    file.write('Observation Space Type    : ' + str(param.observation_space_type) + '\n')
-    file.write('Observation Space Length  : ' + str(env.observation_space_length) + '\n')
-    for i in range(0, len(training_driver.layers)):
-        file.write('Layer ' + str(i) + ' Nodes             : ' + str(training_driver.layers[i]) + '\n')
-        file.write('Layer ' + str(i) + ' Activations       : ' + str(training_driver.activations[i]) + '\n')
-        file.write('Layer ' + str(i) + ' Dropout           : ' + str(training_driver.dropouts[i]) + '\n')
+    file.write('Observation Space Length  : ' + str(training_driver.observation_space_length) + '\n')
+    file.write('Include Reward in Obs     : ' + str(param.include_reward_in_obs) + '\n')
+    file.write('Input Layer Nodes         : ' + str(training_driver.observation_space_length) + '\n')
+    for i in range(0, len(training_driver.layer_nodes)):
+        file.write('Layer ' + str(i+1) + ' Type              : ' + str(training_driver.layer_types[i]) + '\n')
+        file.write('Layer ' + str(i+1) + ' Nodes             : ' + str(training_driver.layer_nodes[i]) + '\n')
+        file.write('Layer ' + str(i+1) + ' Filters           : ' + str(training_driver.layer_num_of_filters[i]) + '\n')
+        file.write('Layer ' + str(i+1) + ' Filter Size       : ' + str(training_driver.layer_filter_sizes[i]) + '\n')
+        file.write('Layer ' + str(i+1) + ' Strides           : ' + str(training_driver.layer_strides[i]) + '\n')
+        file.write('Layer ' + str(i+1) + ' Activation        : ' + str(training_driver.activations[i]) + '\n')
+        file.write('Layer ' + str(i+1) + ' Dropout           : ' + str(training_driver.dropouts[i]) + '\n')
+    file.write('Output Layer Nodes        : ' + str(training_driver.action_space_size) + '\n')
+    file.write('Output Layer Activation   : ' + str(training_driver.output_layer_activation) + '\n')
+    file.write('Regression Optimizer      : ' + str(training_driver.regression_optimizer) + '\n')
+    file.write('Loss Function             : ' + str(training_driver.loss_function) + '\n')
     file.write('\n\nModel Outputs\n\n')
     file.close()
     env.close()
