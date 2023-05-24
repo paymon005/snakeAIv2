@@ -7,28 +7,35 @@ class Parameters:
         # True
         # False
         self.run_to_load = 'Snake_Model_2023_05_23___00_06_12-14410'
-        self.training_data_to_load = 'Req2_500games_FullMatrix.npy'
+        self.training_data_to_load = 'Req2_1000games_FullMatrix_36x36_300goalstep.npy'
+        # model loading
         self.load_model = False
         self.load_specific_model = False
-        self.load_training_data = True
-        self.load_specific_training_data = True
+        # training data loading
+        self.load_training_data = False
+        self.load_specific_training_data = False
+        # generate training data
         self.generate_training_data = False
-        self.train_model = True
+        # model training
+        self.train_model = False
         self.recursive_training = False
-        self.plot_graphs = False
-        self.use_target_training_data_length = True
+        # plotting
+        self.plot_graphs = True
+        # training data forcing
+        self.force_training_data_length = True
+        self.forced_training_data_length = 500
         self.force_score_requirement = True
         self.forced_score_requirement = 2
-        self.target_training_data_length = 500
+        # other parameters
         self.score_check_runs = 100
         self.initial_games = 10
         self.accepted_percentile = 95
-        self.goal_steps = 1000
+        self.goal_steps = 300
         self.epochs = 50
+        self.LR = 0.002
         self.cores_for_games = 16
         self.cores_for_training = 16
         self.gpu_memory_fraction = 0.5
-        self.LR = 0.002
         self.kick_out_sore = -500
         self.recursive_iterations = 10
         self.recursive_score_check_runs = 200
@@ -39,7 +46,7 @@ class Parameters:
         self.mutation_rate = 0.01
         self.score_requirement = 9e-9
         # self.game_size = [72, 48]
-        self.game_size = [36, 24]
+        self.game_size = [36, 36]
         self.snake_speed = 45
         self.games_to_play = 10
         self.now = datetime.now()  # current date and time
@@ -47,7 +54,7 @@ class Parameters:
         self.log_dir = 'log'
         self.model_name = 'Snake_Model_' + self.now.strftime("%Y_%m_%d___%H_%M_%S")
         self.run_dir = self.now.strftime("%Y_%m_%d___%H_%M_%S")
-        self.run_random_game = True
+        self.run_random_game = False
         self.use_model_when_making_training_data = True
         self.include_reward_in_obs = False
         self.profile_run = False
