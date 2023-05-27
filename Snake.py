@@ -1,6 +1,6 @@
 class Snake:
 
-    def __init__(self):
+    def __init__(self):  # snek
         self.direction = 'RIGHT'
         self.position = [10, 5]
         self.length = 3

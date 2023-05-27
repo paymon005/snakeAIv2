@@ -11,6 +11,7 @@ from ctypes.wintypes import BOOL, HWND, RECT
 class SnakeEnv(gym.Env):
 
     def __init__(self, game_size, first_layer_type):
+        # define the weights for determine a good snek vs a bad snek
         self.alive_weight = 0
         self.score_weight = 1
         self.dead_weight = -1
@@ -19,13 +20,13 @@ class SnakeEnv(gym.Env):
         self.away_weight = 0
         self.last_score = 0
         self.choices_to_check_for_looping = 10
+        # other shit
         self.window = None
         self.fps = None
         self.x = 0
         self.y = 0
         self.game_size = game_size
         self.first_layer_type = first_layer_type
-        self.reward_range = (0, 200)
         self.action_space_size = 3
         self.controller = HeadlessSnake(game_size)
         self.prototype = WINFUNCTYPE(BOOL, HWND, POINTER(RECT))
@@ -41,33 +42,33 @@ class SnakeEnv(gym.Env):
             self.state = self.controller.get_array()
         self.observation_space_length = self.state.size
         self.action_space = spaces.Discrete(self.action_space_size)
-        # self.observation_space = spaces.Box(low=np.zeros(self.game_size),
+        # self.observation_space = spaces.Box(low=np.zeros(self.game_size),  # maybe I need to do this???? fuck if i know
         #                                    high=np.ones(self.game_size),
         #                                    dtype=np.int)   # 0 = up, 1 = down, 2 = left, 3 = right
 
     def step(self, action, choices=None):
         done = False
         assert self.action_space.contains(action), "Invalid Action"
-        self.controller.change_direction(self.get_action_meaning(action))
-        self.controller.change_position()
+        self.controller.change_direction(self.get_action_meaning(action))  # change snake direction from action
+        self.controller.change_position()  # move snake
         self.controller.check_yumyum_and_move_body()  # check if we ate
-        if self.controller.check_game_over():
+        if self.controller.check_game_over():  # check if we lost
             done = True
         else:
-            if self.first_layer_type == 'conv_2d':
+            if self.first_layer_type == 'conv_2d':   # if convolution DNN, feed matrix
                 self.state = self.controller.update_matrix()
             else:
-                self.state = self.controller.get_array()
-        rewards = self.calculate_reward(choices)
+                self.state = self.controller.get_array()   # if convolution DNN, feed perception array
+        rewards = self.calculate_reward(choices)  # get step reward
         return self.state, rewards, done
 
     def reset(self, *, seed=None, return_info=False, options=None):
         del self.controller
         self.controller = HeadlessSnake(self.game_size)
-        if self.first_layer_type == 'conv_2d':
-            self.state = self.controller.update_matrix().flatten()
+        if self.first_layer_type == 'conv_2d':  # if convolution DNN, feed matrix
+            self.state = self.controller.update_matrix().flatten()  # flatten matrix to array
         else:
-            self.state = self.controller.get_array()
+            self.state = self.controller.get_array()  # get perception array if not convolution DNN
 
     def render(self, score=''):
         if self.window is None:
@@ -75,12 +76,12 @@ class SnakeEnv(gym.Env):
             self.window = pygame.display.set_mode((self.controller.window_x, self.controller.window_y))
             self.x = pygame.display.Info().current_w
             self.y = pygame.display.Info().current_h
-        hwnd = pygame.display.get_wm_info()['window']
-        rect = self.GetWindowRect(hwnd)
-        self.user32.SetWindowPos(hwnd, -1, rect.left, rect.top, 0, 0, 0x0001)
-        pygame.display.set_caption('Snake [Score: ' + str(score) + ']')
-        self.draw_game()
-        pygame.event.pump()
+        hwnd = pygame.display.get_wm_info()['window']  # get window handle
+        rect = self.GetWindowRect(hwnd)  # get current window position
+        self.user32.SetWindowPos(hwnd, -1, rect.left, rect.top, 0, 0, 0x0001)  # put the window on top, without moving it
+        pygame.display.set_caption('Snake [Score: ' + str(score) + ']')  # change title
+        self.draw_game()  # draw that shit
+        pygame.event.pump()  # pump it up
 
     def close(self):
         pygame.quit()
@@ -102,9 +103,9 @@ class SnakeEnv(gym.Env):
         fruit_distance_new = MyTools.calc_distance(self.controller.fruit_position, self.controller.snake.position)
         fruit_distance_diff = fruit_distance_old - fruit_distance_new
 
-        reward += score_diff * self.score_weight
+        reward += score_diff * self.score_weight  # get reward if we got fruit
 
-        if choices is not None:
+        if choices is not None:  # check for looping by check if our last x turns are the same
             looping = False
             choices = list(filter(MyTools.is_not_zero, choices))
             if len(choices) > self.choices_to_check_for_looping:
@@ -116,25 +117,25 @@ class SnakeEnv(gym.Env):
                         break
             if looping:
                 reward += self.loop_weight
-        else:
+        else:  # check for looping by seeing if we are staying in the same spot
             self_distance = []
             for pos in self.controller.last_position:
                 self_distance.append(MyTools.calc_distance(pos, self.controller.snake.position))
             if len(self.controller.last_position) == 10 and max(self_distance) < 2:
                 reward += self.loop_weight
 
-        if fruit_distance_diff > 0:
+        if fruit_distance_diff > 0:  # reward/punish if we are moving away or toward the fruit
             reward += self.towards_weight
         else:
             reward += self.away_weight
 
-        if self.controller.snake.alive:
+        if self.controller.snake.alive:  # reward if it is staying alive
             reward += self.alive_weight
-        if not self.controller.snake.alive:
+        if not self.controller.snake.alive:  # kick the dead snek
             reward += self.dead_weight
 
         self.last_score = self.controller.score
-        self.controller.last_position.insert(0, self.controller.snake.position)
+        self.controller.last_position.insert(0, self.controller.snake.position)  # add last position for loop checking
         if len(self.controller.last_position) > 10:
             self.controller.last_position.pop()
         return reward

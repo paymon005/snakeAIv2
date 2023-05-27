@@ -36,27 +36,27 @@ class HeadlessSnake:
 
     def check_yumyum_and_move_body(self):
         snake_body = self.snake.body
-        snake_body.insert(0, list(self.snake.position))
+        snake_body.insert(0, list(self.snake.position))  # add a snake segment
         if self.snake.position[0] == self.fruit_position[0] and self.snake.position[1] == \
-                self.fruit_position[1]:
-            self.score += self.score_per_fruit
-            self.spawn_fruit()
-        else:
+                self.fruit_position[1]:  # if we got fruit
+            self.score += self.score_per_fruit  # increase score
+            self.spawn_fruit()  # spawn a new fruit
+        else:  # if we didn't get a fruit, remove the last snake segment
             snake_body.pop()
         self.snake.body = snake_body
 
     def check_game_over(self):
         if self.snake.position[0] <= 0 or self.snake.position[0] >= self.game_size[0] - 1:
-            return True
+            return True  # we collided with an edge in the y
         if self.snake.position[1] <= 0 or self.snake.position[1] >= self.game_size[1] - 1:
-            return True
+            return True  # we collided with an edge in the x
         # Touching the snake body
         for block in self.snake.body[1:]:
             if self.snake.position[0] == block[0] and self.snake.position[1] == block[1]:
                 self.snake.alive = False
                 return True
 
-    def change_position(self):
+    def change_position(self):  # move snake
         current_position = self.snake.position
         if self.snake.direction == 'UP':
             self.snake.position = [current_position[0], current_position[1] - self.speed]
@@ -90,7 +90,7 @@ class HeadlessSnake:
                 self.snake.direction = 'DOWN'
 
     def update_matrix(self):
-        # 0 = empty, -1 = obstacle/body, 2 = player, 1 = food
+        # 0 = empty, -1 = obstacle/body, 1 = food, 2 = player
         self.matrix = np.zeros((self.game_size[1], self.game_size[0]))
         self.matrix[:, 0] = -1
         self.matrix[:, self.game_size[0] - 1] = -1
@@ -102,16 +102,15 @@ class HeadlessSnake:
         self.matrix[self.snake.position[1], self.snake.position[0]] = 2
         return self.matrix
 
-    def get_array(self):
+    def get_array(self):  # define perception array to feed as observation
         self.matrix = self.update_matrix()
         self.observation_array = np.array([])
-        whats_left = 0
-        whats_right = 0
-        whats_in_front = 0
+        whats_left, whats_right, whats_in_front = 0, 0, 0
         snake_y = self.snake.position[1]
         snake_x = self.snake.position[0]
         fruit_y = self.fruit_position[1]
         fruit_x = self.fruit_position[0]
+        # get what is to the left, right, and in front of us
         if self.snake.direction == 'UP':
             whats_left = self.matrix[snake_y, snake_x - 1]
             whats_right = self.matrix[snake_y, snake_x + 1]
@@ -129,10 +128,11 @@ class HeadlessSnake:
             whats_right = self.matrix[snake_y + 1, snake_x]
             whats_in_front = self.matrix[snake_y, snake_x + 1]
 
-        normal_angle = MyTools.get_normalized_angle(snake_y, snake_x, fruit_y, fruit_x)
+        normal_angle = MyTools.get_normalized_angle(snake_y, snake_x, fruit_y, fruit_x)  # calculate normalized angle to fruit
         # y_dist = (snake_y - fruit_y) / (self.game_size[1] - 2)
         # x_dist = (snake_x - fruit_x) / (self.game_size[0] - 2)
 
+        # create observation array from perception values
         self.observation_array = np.append(self.observation_array, whats_left)
         self.observation_array = np.append(self.observation_array, whats_right)
         self.observation_array = np.append(self.observation_array, whats_in_front)
