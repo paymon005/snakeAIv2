@@ -77,9 +77,7 @@ class DnnDriver:
 
     def train_model(self):
         self.save_layers()
-        if (
-            self.layer_types[0] == "conv_2d"
-        ):  # if the first layer in the model is a convolution layer, it will expect the whole game matrix
+        if self.layer_types[0] == "conv_2d":  # if the first layer in the model is a convolution layer, it will expect the whole game matrix
             X = np.array([i[0] for i in self.training_data]).reshape(
                 (-1, self.game_size[1], self.game_size[0], 1)
             )
@@ -126,10 +124,7 @@ class DnnDriver:
         tflearn.init_graph(
             num_cores=self.num_of_cores, gpu_memory_fraction=self.gpu_mem
         )  # setup graph for usage
-
-        if (
-            self.layer_types[0] == "fully_connected" or self.layer_types[0] == "conv_1d"
-        ):  # again check input size, a function of first layer definition
+        if self.layer_types[0] == "fully_connected" or self.layer_types[0] == "conv_1d":  # again check input size, a function of first layer definition
             self.network = input_data(
                 shape=[None, self.observation_space_length, 1], name="input"
             )
@@ -206,9 +201,7 @@ class DnnDriver:
         self.model.save(self.model_dir + "\\" + self.run_dir)
 
     def load_model(self, run_name=None):
-        if (
-            run_name is None
-        ):  # if we didn't get a name, get the newest model in the model dir
+        if run_name is None:  # if we didn't get a name, get the newest model in the model dir
             [model_to_load, self.run_dir] = self.get_last_run()
             final_path = os.path.join(os.getcwd(), model_to_load)
         else:  # otherwise, find the model with the given name

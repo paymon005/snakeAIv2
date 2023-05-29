@@ -129,9 +129,7 @@ class SnakeEnv(gym.Env):
 
         reward += score_diff * self.score_weight  # get reward if we got fruit
 
-        if (
-            choices is not None
-        ):  # check for looping by check if our last x turns are the same
+        if choices is not None:  # check for looping by check if our last x turns are the same
             looping = False
             choices = list(filter(MyTools.is_not_zero, choices))
             if len(choices) > self.choices_to_check_for_looping:
@@ -152,9 +150,7 @@ class SnakeEnv(gym.Env):
             if len(self.controller.last_position) == 10 and max(self_distance) < 2:
                 reward += self.loop_weight
 
-        if (
-            fruit_distance_diff > 0
-        ):  # reward/punish if we are moving away or toward the fruit
+        if fruit_distance_diff > 0:  # reward/punish if we are moving away or toward the fruit
             reward += self.towards_weight
         else:
             reward += self.away_weight

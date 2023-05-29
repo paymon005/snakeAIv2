@@ -21,9 +21,7 @@ class Parameters:
         # plotting
         self.plot_graphs = True
         # training data forcing
-        self.force_training_data_length = (
-            True  # keep running until you get a certain amount of training data
-        )
+        self.force_training_data_length = True  # keep running until you get a certain amount of training data
         self.forced_training_data_length = 500
         self.force_score_requirement = True  # force score req, rather than using a percentile and score_check runs to define it
         self.forced_score_requirement = 2

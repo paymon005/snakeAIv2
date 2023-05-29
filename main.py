@@ -12,7 +12,6 @@ from parallelbar import progress_map
 from functools import partial
 import MyTools
 from Parameters import Parameters
-
 np.warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
 
 
@@ -171,9 +170,7 @@ def initial_population(
         model = training_driver.model  # make sure we have a model to use
     else:
         model = None  # if we don't, set to none, so we know to use random inputs
-    if (
-        param.cores_for_games > 1 and not param.load_model
-    ):  # solve in parallel (cant pickle model objects so cant run in parallel)
+    if param.cores_for_games > 1 and not param.load_model:  # solve in parallel (cant pickle model objects so cant run in parallel)
         [scores, accepted_scores, training_data] = submit_parallel_core_jobs(
             param, obs_length, num_of_runs, model, score_checking
         )
@@ -216,13 +213,9 @@ def submit_parallel_core_jobs(param, obs_length, num_of_runs, model, score_check
         manager.list(),
     )
     force_training_data_length = param.force_training_data_length
-    if (
-        score_checking
-    ):  # if we are score_checking, we are just trying to derive a requirement, so don't force length, use num_of_runs
+    if score_checking:  # if we are score_checking, we are just trying to derive a requirement, so don't force length, use num_of_runs
         force_training_data_length = False
-    if (
-        force_training_data_length
-    ):  # if we are forcing the data length, we need to access the length of the variables to check when we are done, so we use a different function and multiprocess library
+    if force_training_data_length:  # if we are forcing the data length, we need to access the length of the variables to check when we are done, so we use a different function and multiprocess library
         print(
             "Getting "
             + str(param.forced_training_data_length)
@@ -278,13 +271,9 @@ def submit_parallel_core_jobs(param, obs_length, num_of_runs, model, score_check
 def submit_single_core_jobs(param, obs_length, num_of_runs, model, score_checking):
     accepted_scores, scores, training_data = [], [], []
     force_training_data_length = param.force_training_data_length
-    if (
-        score_checking
-    ):  # if we are score_checking, we are just trying to derive a requirement, so don't force length, use num_of_runs
+    if score_checking:  # if we are score_checking, we are just trying to derive a requirement, so don't force length, use num_of_runs
         force_training_data_length = False
-    if (
-        force_training_data_length
-    ):  # if we are forcing the data length, our end condition is different
+    if force_training_data_length:  # if we are forcing the data length, our end condition is different
         print(
             "Getting "
             + str(param.forced_training_data_length)
@@ -293,9 +282,7 @@ def submit_single_core_jobs(param, obs_length, num_of_runs, model, score_checkin
         )
         time.sleep(0.5)  # i read fast
         cnt = 1
-        while (
-            len(accepted_scores) < param.forced_training_data_length
-        ):  # run until enough games pass the req
+        while len(accepted_scores) < param.forced_training_data_length:  # run until enough games pass the req
             [training_data, scores, accepted_scores, _] = run_a_game(
                 param,
                 obs_length,
@@ -552,11 +539,9 @@ def count_and_print_choices(choices):  # if i need to explain this ur a lost cau
     )
 
 
-def save_inputs(
-    param, training_driver, accepted_scores=None, test_run_scores=None
-):  # save model inputs so we know what worked or didn't
+def save_inputs(param, training_driver, accepted_scores=None, test_run_scores=None):  # save model inputs so we know what worked or didn't
     env = SnakeEnv(param.game_size, param.first_layer_type)
-    filename = param.model_dir + "\\" + param.run_dir + "\\" + "Summary" + ".txt"
+    filename = param.model_dir + "\\" + param.run_dir + "\\" + "Summary.txt"
     file = open(filename, "w")
     file.write("Model Inputs\n\n")
     file.write("Percentile                : " + str(param.accepted_percentile) + "\n")
@@ -566,20 +551,14 @@ def save_inputs(
     if test_run_scores is not None:
         file.write("Number of test scores     : " + str(len(test_run_scores)) + "\n")
         file.write("Max of test scores        : " + str(max(test_run_scores)) + "\n")
-        file.write(
-            "Average of test scores    : " + str(round(mean(test_run_scores), 0)) + "\n"
-        )
+        file.write("Average of test scores    : " + str(round(mean(test_run_scores), 0)) + "\n")
         file.write("Min of tests score        : " + str(min(test_run_scores)) + "\n\n")
-        file.write(
-            "Score Requirement         : " + str(param.score_requirement) + "\n\n"
-        )
+        file.write("Score Requirement         : " + str(param.score_requirement) + "\n\n")
         file.write("Initial_games             : " + str(param.initial_games) + "\n")
     if accepted_scores is not None:
         file.write("Number of accepted scores : " + str(len(accepted_scores)) + "\n")
         file.write("Max accepted score        : " + str(max(accepted_scores)) + "\n")
-        file.write(
-            "Average accepted score    : " + str(round(mean(accepted_scores), 0)) + "\n"
-        )
+        file.write("Average accepted score    : " + str(round(mean(accepted_scores), 0)) + "\n")
         file.write("Min accepted score        : " + str(min(accepted_scores)) + "\n\n")
         file.write("Alive Weight              : " + str(env.alive_weight) + "\n")
         file.write("Score Weight              : " + str(env.score_weight) + "\n")
@@ -587,91 +566,23 @@ def save_inputs(
         file.write("Loop Weight               : " + str(env.loop_weight) + "\n")
         file.write("Towards Weight            : " + str(env.towards_weight) + "\n")
         file.write("Away Weight               : " + str(env.away_weight) + "\n")
-    file.write(
-        "Game Size                 : ["
-        + str(param.game_size[0])
-        + ","
-        + str(param.game_size[1])
-        + "]\n\n"
-    )
+    file.write("Game Size                 : [" + str(param.game_size[0]) + "," + str(param.game_size[1]) + "]\n\n")
     file.write("Network Data\n")
-    file.write(
-        "Observation Space Length  : "
-        + str(training_driver.observation_space_length)
-        + "\n"
-    )
+    file.write("Observation Space Length  : " + str(training_driver.observation_space_length) + "\n")
     file.write("Include Reward in Obs     : " + str(param.include_reward_in_obs) + "\n")
-    file.write(
-        "Input Layer Nodes         : "
-        + str(training_driver.observation_space_length)
-        + "\n"
-    )
+    file.write("Input Layer Nodes         : " + str(training_driver.observation_space_length) + "\n")
     for i in range(0, len(training_driver.layer_types)):
-        file.write(
-            "Layer "
-            + str(i + 1)
-            + " Type              : "
-            + str(training_driver.layer_types[i])
-            + "\n"
-        )
-        file.write(
-            "Layer "
-            + str(i + 1)
-            + " Elements          : "
-            + str(training_driver.layer_num_of_elements[i])
-            + "\n"
-        )
-        file.write(
-            "Layer "
-            + str(i + 1)
-            + " Filter Size       : "
-            + str(training_driver.layer_filter_sizes[i])
-            + "\n"
-        )
-        file.write(
-            "Layer "
-            + str(i + 1)
-            + " Strides           : "
-            + str(training_driver.layer_strides[i])
-            + "\n"
-        )
-        file.write(
-            "Layer "
-            + str(i + 1)
-            + " Activation        : "
-            + str(training_driver.activations[i])
-            + "\n"
-        )
-        file.write(
-            "Layer "
-            + str(i + 1)
-            + " Dropout           : "
-            + str(training_driver.dropouts[i])
-            + "\n"
-        )
-        file.write(
-            "Layer "
-            + str(i + 1)
-            + " Dropout Keep Prob : "
-            + str(training_driver.keep_probability[i])
-            + "\n"
-        )
-    file.write(
-        "Output Layer Nodes        : " + str(training_driver.action_space_size) + "\n"
-    )
-    file.write(
-        "Output Layer Activation   : "
-        + str(training_driver.output_layer_activation)
-        + "\n"
-    )
-    file.write(
-        "Regression Optimizer      : "
-        + str(training_driver.regression_optimizer)
-        + "\n"
-    )
-    file.write(
-        "Loss Function             : " + str(training_driver.loss_function) + "\n"
-    )
+        file.write("Layer " + str(i + 1) + " Type              : " + str(training_driver.layer_types[i]) + "\n")
+        file.write("Layer " + str(i + 1) + " Elements          : " + str(training_driver.layer_num_of_elements[i]) + "\n")
+        file.write("Layer " + str(i + 1) + " Filter Size       : " + str(training_driver.layer_filter_sizes[i]) + "\n")
+        file.write("Layer " + str(i + 1) + " Strides           : " + str(training_driver.layer_strides[i]) + "\n")
+        file.write("Layer " + str(i + 1) + " Activation        : " + str(training_driver.activations[i]) + "\n")
+        file.write("Layer " + str(i + 1) + " Dropout           : " + str(training_driver.dropouts[i]) + "\n")
+        file.write("Layer " + str(i + 1) + " Dropout Keep Prob : " + str(training_driver.keep_probability[i]) + "\n")
+    file.write( "Output Layer Nodes        : " + str(training_driver.action_space_size) + "\n")
+    file.write("Output Layer Activation   : " + str(training_driver.output_layer_activation) + "\n")
+    file.write("Regression Optimizer      : " + str(training_driver.regression_optimizer) + "\n")
+    file.write("Loss Function             : " + str(training_driver.loss_function) + "\n")
     file.write("\n\nModel Outputs\n\n")
     file.close()
     env.close()
@@ -683,32 +594,17 @@ def save_outputs(training_driver, final_scores, choices):  # save score to summa
         + "\\"
         + training_driver.run_dir
         + "\\"
-        + "Summary"
-        + ".txt"
+        + "Summary.txt"
     )
     file = open(filename, "a")
     file.write("Model Run\n")
     file.write("Number of final scores    : " + str(len(final_scores)) + "\n")
     file.write("Max Score                 : " + str(max(final_scores)) + "\n")
-    file.write(
-        "Average Score             : " + str(round(mean(final_scores), 0)) + "\n"
-    )
+    file.write("Average Score             : " + str(round(mean(final_scores), 0)) + "\n")
     file.write("Min Score                 : " + str(min(final_scores)) + "\n")
-    file.write(
-        "Choices [Straight]        : "
-        + str(round(choices.count(0) / len(choices) * 100, 2))
-        + "%\n"
-    )
-    file.write(
-        "Choices [Left]            : "
-        + str(round(choices.count(1) / len(choices) * 100, 2))
-        + "%\n"
-    )
-    file.write(
-        "Choices [Right]           : "
-        + str(round(choices.count(2) / len(choices) * 100, 2))
-        + "%\n\n"
-    )
+    file.write("Choices [Straight]        : " + str(round(choices.count(0) / len(choices) * 100, 2)) + "%\n")
+    file.write("Choices [Left]            : " + str(round(choices.count(1) / len(choices) * 100, 2)) + "%\n")
+    file.write("Choices [Right]           : " + str(round(choices.count(2) / len(choices) * 100, 2)) + "%\n\n")
     file.close()
 
 
