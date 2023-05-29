@@ -2,12 +2,11 @@ from datetime import datetime
 
 
 class Parameters:
-
     def __init__(self):
         # True
         # False
-        self.run_to_load = 'Snake_Model_2023_05_23___00_06_12-14410'
-        self.training_data_to_load = 'FullMatrix_36x36_Req2_1000games_300goalstep.npy'
+        self.run_to_load = "Snake_Model_2023_05_23___00_06_12-14410"
+        self.training_data_to_load = "FullMatrix_36x36_Req2_1000games_300goalstep.npy"
         # model loading
         self.load_model = False
         self.load_specific_model = False
@@ -22,7 +21,9 @@ class Parameters:
         # plotting
         self.plot_graphs = True
         # training data forcing
-        self.force_training_data_length = True  # keep running until you get a certain amount of training data
+        self.force_training_data_length = (
+            True  # keep running until you get a certain amount of training data
+        )
         self.forced_training_data_length = 500
         self.force_score_requirement = True  # force score req, rather than using a percentile and score_check runs to define it
         self.forced_score_requirement = 2
@@ -50,9 +51,9 @@ class Parameters:
         self.snake_speed = 45
         self.games_to_play = 5
         self.now = datetime.now()  # current date and time
-        self.model_dir = 'Models'
-        self.log_dir = 'log'
-        self.model_name = 'Snake_Model_' + self.now.strftime("%Y_%m_%d___%H_%M_%S")
+        self.model_dir = "Models"
+        self.log_dir = "log"
+        self.model_name = "Snake_Model_" + self.now.strftime("%Y_%m_%d___%H_%M_%S")
         self.run_dir = self.now.strftime("%Y_%m_%d___%H_%M_%S")
         self.run_random_game = False
         self.use_model_when_making_training_data = True
@@ -72,7 +73,7 @@ class Parameters:
         else:
             self.load_model = True
         if self.recursive_training:
-            self.run_dir = self.run_dir + '\\Iteration_1'
+            self.run_dir = self.run_dir + "\\Iteration_1"
         if self.force_score_requirement:
             self.score_requirement = self.forced_score_requirement
         if self.load_training_data:
@@ -81,5 +82,9 @@ class Parameters:
             self.run_random_game = False
         if not self.generate_training_data and not self.train_model:
             self.play_full_game = True
-        if not self.generate_training_data and not self.load_training_data and self.train_model:
-            raise Exception('This shit wont run. No training data for model')
+        if (
+            not self.generate_training_data
+            and not self.load_training_data
+            and self.train_model
+        ):
+            raise Exception("This shit wont run. No training data for model")
