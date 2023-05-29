@@ -2,7 +2,7 @@ import time
 import numpy as np
 from tflearn.layers.core import input_data, dropout, fully_connected
 from tflearn.layers.estimator import regression
-from tflearn import callbacks, conv_2d, conv_1d, max_pool_2d
+from tflearn import callbacks, conv_2d, conv_1d, max_pool_2d, avg_pool_2d
 import tflearn
 import os
 import tensorflow as tf
@@ -33,13 +33,14 @@ class DnnDriver:
         self.epochs = epochs
         self.learning_rate = learning_rate
         # all arrays below must be the same length (fill None at idxs where values do not apply)
-        self.layer_types =           ['conv_2d', 'avg_pool_2d', 'fully_connected']  # conv_2d, fully_connected, conv_1d, max_pool_2d, avg_pool_2d
-        self.layer_num_of_elements = [36, 4, 24]  # number of layer elements
-        self.layer_filter_sizes =    [4, None, None]  # only for conv layers
-        self.layer_strides =         [2, 2, None]  # only for conv/pool layers
-        self.dropouts =              [False, False, True]  # whether to add a dropout on this layer
-        self.keep_probability =      [None, None, 0.85]  # dropout keep rate
-        self.activations =           ['relu', None, 'linear']  # each layers activation function
+        # http://tflearn.org/layers/core/
+        self.layer_types =           ['conv_2d', 'fully_connected']  # conv_2d, fully_connected, conv_1d, max_pool_2d, avg_pool_2d
+        self.layer_num_of_elements = [64, 16]  # number of layer elements, very large layer take long to fit
+        self.layer_filter_sizes =    [8, None]  # only for conv layers
+        self.layer_strides =         [4, None]  # only for conv/pool layers
+        self.dropouts =              [False, True]  # whether to add a dropout on this layer
+        self.keep_probability =      [None, 0.85]  # dropout keep rate
+        self.activations =           ['relu', 'linear']  # each layers activation function
         self.output_layer_activation = 'softmax'
         self.regression_optimizer = 'adam'
         self.loss_function = 'mean_square'
@@ -133,6 +134,11 @@ class DnnDriver:
                                        weights_init=tnorm)
             elif self.layer_types[i] == 'max_pool_2d':  # 2d max pooling, to downsample conv2d outputs
                 self.network = max_pool_2d(self.network,
+                                           kernel_size=self.layer_num_of_elements[i],
+                                           strides=self.layer_strides[i],
+                                           )
+            elif self.layer_types[i] == 'avg_pool_2d':  # 2d max pooling, to downsample conv2d outputs
+                self.network = avg_pool_2d(self.network,
                                            kernel_size=self.layer_num_of_elements[i],
                                            strides=self.layer_strides[i],
                                            )
