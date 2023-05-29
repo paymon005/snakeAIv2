@@ -34,9 +34,7 @@ def run_tflearn_trainer(param):
         training_driver.load_model(param.run_to_load)  # load a previously trained model
     else:
         training_driver.neural_network_model()  # make a new neural network
-    param.first_layer_type = training_driver.layer_types[
-        0
-    ]  # first layer defines out observation (conv_2d for images, fully connected for vectors)
+    param.first_layer_type = training_driver.layer_types[0]   # first layer defines our observation (conv_2d for images, fully connected for vectors)
     if param.load_training_data:
         training_driver.load_training_data(
             param.training_data_to_load
@@ -147,12 +145,9 @@ def make_training_data(training_driver, param, in_recursion=False):
         )  # run some games to understand the average score and make a requirement
     print("Setting " + str(param.score_requirement) + " as the score requirement")
     time.sleep(5)  # i cant read fast
-    MyTools.create_save_dir(
-        param.model_dir, param.run_dir
-    )  # make dir if not already made
-    training_driver.training_data, accepted_scores = initial_population(
-        training_driver, games[1], param, False, True, in_recursion
-    )  # make training data against score req
+    MyTools.create_save_dir(param.model_dir, param.run_dir)  # make dir if not already made
+    training_driver.training_data, accepted_scores = initial_population(training_driver, games[1], param, False, True,
+                                                                        in_recursion)  # make training data using score req
     time.sleep(5)  # i cant read fast
     if len(training_driver.training_data) == 0:
         return  # i dunno
@@ -160,13 +155,9 @@ def make_training_data(training_driver, param, in_recursion=False):
 
 
 def get_score_requirement(training_driver, num_of_runs, param, in_recursion):
-    _, accepted_scores = initial_population(
-        training_driver, num_of_runs, param, True, False, in_recursion
-    )
-    idx = int(
-        param.accepted_percentile / 100 * len(accepted_scores)
-    )  # get score of defined percentile
-    req = sorted(accepted_scores)[idx - 1]
+    _, accepted_scores = initial_population(training_driver, num_of_runs, param, True, False, in_recursion)
+    idx = int(param.accepted_percentile / 100 * len(accepted_scores))  # get score of defined percentile
+    req = sorted(accepted_scores)[idx - 1]  # get score of defined percentile
     return accepted_scores, req
 
 
